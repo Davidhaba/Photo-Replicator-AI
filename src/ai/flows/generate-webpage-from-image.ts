@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview AI flow for generating a webpage (HTML/CSS) from an image, with support for multi-part generation.
@@ -17,15 +16,16 @@ const GenerateWebpageInputSchema = z.object({
     .describe(
       "A photo to be converted into a webpage, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
-  previousContent: z.string().optional().describe("Previously generated HTML content, if this is a continuation request."),
+  previousContent: z.string().optional().describe("Previously generated HTML content, if this is a continuation request. Provide ONLY the new content that follows this."),
+  attemptNumber: z.number().optional().describe("The current attempt number, starting from 1 for the initial request.")
 });
 export type GenerateWebpageInput = z.infer<typeof GenerateWebpageInputSchema>;
 
 const GenerateWebpageOutputSchema = z.object({
   htmlChunk: z
     .string()
-    .optional() // Made optional to handle cases where AI might return null initially for content
-    .describe('A chunk of the HTML/CSS code for the webpage.'),
+    .optional() 
+    .describe('A chunk of the HTML/CSS code for the webpage. This should ONLY be the NEW content, not including previousContent.'),
   isComplete: z.boolean().describe("True if the generation is complete, false if more content is expected to follow."),
 });
 export type GenerateWebpageOutput = z.infer<typeof GenerateWebpageOutputSchema>;
@@ -73,23 +73,31 @@ You are a world-class, hyper-specialized AI web development agent, a master of H
 12. **Color Accuracy (EXACT VALUES):** Use EXACT hex/RGB/HSL values as extracted or inferred from the image for ALL colors.
 13. **Responsiveness (IF AND ONLY IF IMPLIED):** Pay attention to responsiveness ONLY if the image itself clearly implies a specific responsive layout (e.g., a mobile screenshot vs. a desktop website screenshot). If not specified, aim for a layout that EXACTLY matches the provided image's dimensions and aspect ratio. The primary goal is to CLONE THE *GIVEN* IMAGE, not to arbitrarily make it responsive.
 14. **ABSOLUTE PROHIBITION: NO EMBEDDING OF SOURCE IMAGE DATA (\\\`photoDataUri\\\`) IN CSS \\\`url()\\\` OR ANYWHERE ELSE IN THE OUTPUT:** Crucially, the source image provided via \\\`{{media url=photoDataUri}}\\\` is for YOUR VISUAL REFERENCE ONLY. It **MUST NOT, UNDER ANY CIRCUMSTANCES,** be embedded as a base64 string (or any other format) within CSS \\\`url()\` functions (e.g., as a \\\`background-image\\\` for any element) or used in \\\`<img>\\\` tags. **ANY ATTEMPT TO INCLUDE THE ORIGINAL IMAGE DATA (BASE64 OR OTHERWISE) IN THE OUTPUT HTML/CSS IS A CRITICAL FAILURE.** If a background image is genuinely part of the design and cannot be recreated with CSS, use a SOLID COLOR, a CSS GRADIENT that mimics the original, or, AS A LAST RESORT for complex, unrenderable graphics, a generic placeholder like \\\`https://placehold.co/WIDTHxHEIGHT.png\\\`. The focus is on REPLICATING structure and foreground elements with HTML/CSS, not on re-embedding the source image.
-15. **Continuation Marker (PRECISION REQUIRED):** If the full HTML/CSS is too long for this single response (highly unlikely given your capabilities, but as a failsafe), generate as much as you can and end your response *EXACTLY* with the marker: \`${marker}\`. Do not include this marker if the content you are generating completes the webpage. If you include the marker, ensure the generated HTML chunk is valid up to that point.
+15. **Continuation Marker (PRECISION REQUIRED):** If the full HTML/CSS is too long for this single response, generate as much as you can and end your response *EXACTLY* with the marker: \`${marker}\`. Do not include this marker if the content you are generating completes the webpage. If you include the marker, ensure the generated HTML chunk is valid up to that point.
 16. **PRIORITY ON COMPLETENESS IF LIMITS ARE REACHED**: If you anticipate that generating every single minute detail with absolute pixel-perfection will exceed the response length limit, you MUST prioritize delivering a COMPLETE, valid HTML document structure (from \`<html>\` to \`</html>\`) with all major sections and elements present, even if some very minor visual details have to be slightly simplified to ensure the entire page is generated and not truncated. An untruncated, slightly less detailed page is VASTLY preferable to a truncated, pixel-perfect fragment. Ensure the \`${marker}\` is used if you are simplifying due to length and still cannot fit everything.
 `;
 
-    if (input.previousContent) {
-      promptSegments.push({text: `CONTINUATION OF CRITICAL MISSION: You are resuming the generation of a pixel-perfect HTML/CSS webpage. The previously generated content is:
+    if (input.previousContent && input.attemptNumber && input.attemptNumber > 1) {
+      promptSegments.push({text: `CONTINUATION OF CRITICAL MISSION (Attempt ${input.attemptNumber}):
+You are resuming the generation of a pixel-perfect HTML/CSS webpage.
+The previously generated content, which YOU MUST NOT REPEAT, is:
 \`\`\`html
 ${input.previousContent}
 \`\`\`
 Image for reference (use this to ensure seamless continuation and overall accuracy):`});
       promptSegments.push({media: {url: input.photoDataUri}});
-      promptSegments.push({text: `Continue generating the HTML and CSS from where the previous content left off.
-Ensure the ENTIRE HTML document is eventually complete. Your goal remains a 1:1, visually INDISTINGUISHABLE, PIXEL-PERFECT clone.
-Adhere to ALL PREVIOUSLY STATED MANDATORY DIRECTIVES, ESPECIALLY THE ITERATIVE SELF-CORRECTION PROTOCOL and THE ABSOLUTE PROHIBITION OF EMBEDDING SOURCE IMAGE DATA.
-Output ONLY the NEW HTML/CSS chunk. Do NOT repeat the \`previousContent\`. Do NOT use markdown code blocks.`});
+      promptSegments.push({text: `CRITICAL: Continue generating the *NEXT CHUNK* of HTML and CSS from *EXACTLY* where the previous content left off.
+DO NOT repeat any part of the \`previousContent\`.
+Your response should ONLY be the NEW code that follows the \`previousContent\`.
+If you are generating the final part of the webpage, ensure the HTML document is properly closed (e.g., \`</body></html>\`).
+If more content is needed, end your response with the marker: ${marker}
+Adhere to ALL PREVIOUSLY STATED MANDATORY DIRECTIVES.
+Output ONLY the NEW HTML code. Do NOT use markdown code blocks.`});
     } else {
-      promptSegments.push({text: `CRITICAL MISSION START: You are a **hyper-specialized, professional AI web development agent**, a world-renowned master of HTML and CSS. Your mission, of paramount importance, is to convert the provided image into a **flawless, production-ready, and visually INDISTINGUISHABLE HTML/CSS webpage clone**. The level of accuracy required is absolute: the final rendered webpage must be a **pixel-for-pixel perfect replica** of the source image, so much so that it would be impossible to tell the difference. Occasionally, you may identify minor, subtle opportunities to enhance the visual presentation (e.g., a slightly smoother gradient, a more refined shadow) *without altering the original design's core elements or layout*. If such an enhancement makes the page even more polished and professional, you may apply it judiciously. However, **exact replication is paramount.**
+      promptSegments.push({text: `CRITICAL MISSION START (Attempt 1):
+You are a **hyper-specialized, professional AI web development agent**, a world-renowned master of HTML and CSS. Your mission, of paramount importance, is to convert the provided image into a **flawless, production-ready, and visually INDISTINGUISHABLE HTML/CSS webpage clone**.
+The level of accuracy required is absolute: the final rendered webpage must be a **pixel-for-pixel perfect replica** of the source image, so much so that it would be impossible to tell the difference.
+Occasionally, you may identify minor, subtle opportunities to enhance the visual presentation (e.g., a slightly smoother gradient, a more refined shadow) *without altering the original design's core elements or layout*. If such an enhancement makes the page even more polished and professional, you may apply it judiciously. However, **exact replication is paramount.**
 
 Image for your meticulous analysis (this is your ONLY visual guide for REPLICATION):`});
       promptSegments.push({media: {url: input.photoDataUri}});
@@ -98,8 +106,10 @@ Image for your meticulous analysis (this is your ONLY visual guide for REPLICATI
 
     const llmResponse = await ai.generate({
       prompt: promptSegments,
+      model: 'googleai/gemini-1.5-flash-latest', // Using a potentially more capable model
       config: {
-        temperature: 0.0,
+        temperature: 0.0, // Lower temperature for more deterministic output
+        maxOutputTokens: 8000, // Adjusted based on model capabilities
         safetySettings: [
           { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
           { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
@@ -110,40 +120,59 @@ Image for your meticulous analysis (this is your ONLY visual guide for REPLICATI
     });
 
     let htmlChunkResult = llmResponse.text ?? "";
-
+    
     // Strip markdown code block delimiters if present
+    // This regex handles optional 'html' language specifier and leading/trailing whitespace within the block
     const markdownBlockRegex = new RegExp(/^```(?:html)?\s*([\s\S]*?)\s*```$/);
     const match = htmlChunkResult.trim().match(markdownBlockRegex);
     if (match && match[1]) {
       htmlChunkResult = match[1].trim();
     } else {
-        // Fallback: if it starts with ```html and ends with ```, remove them
-        if (htmlChunkResult.startsWith("```html") && htmlChunkResult.endsWith("```")) {
-            htmlChunkResult = htmlChunkResult.substring(7, htmlChunkResult.length - 3).trim();
-        } else if (htmlChunkResult.startsWith("```") && htmlChunkResult.endsWith("```")) {
-             htmlChunkResult = htmlChunkResult.substring(3, htmlChunkResult.length - 3).trim();
+        // More robust stripping for cases where only one side of backticks might be present
+        if (htmlChunkResult.startsWith("```html")) {
+            htmlChunkResult = htmlChunkResult.substring(7);
+        } else if (htmlChunkResult.startsWith("```")) {
+            htmlChunkResult = htmlChunkResult.substring(3);
         }
+        if (htmlChunkResult.endsWith("```")) {
+            htmlChunkResult = htmlChunkResult.substring(0, htmlChunkResult.length - 3);
+        }
+        htmlChunkResult = htmlChunkResult.trim();
     }
 
-    let userMarkerFound = false;
 
+    let userMarkerFound = false;
     if (htmlChunkResult.trim().endsWith(marker)) {
         userMarkerFound = true;
+        // Remove the marker itself from the chunk
         htmlChunkResult = htmlChunkResult.substring(0, htmlChunkResult.lastIndexOf(marker)).trimEnd();
     }
 
     let isActuallyComplete = true;
-
     const candidate = llmResponse.candidates?.[0];
-    if (candidate?.finishReason === 'MAX_TOKENS') {
+
+    // Check finishReason for MAX_TOKENS or if the model explicitly used the marker
+    if (candidate?.finishReason === 'MAX_TOKENS' || candidate?.finishReason === 'OTHER') { // 'OTHER' can sometimes indicate truncation
         isActuallyComplete = false;
     } else if (userMarkerFound) {
         isActuallyComplete = false;
     }
 
-    if ((!htmlChunkResult || htmlChunkResult.trim() === "") && !isActuallyComplete) {
-        console.warn("AI returned empty or null chunk, but indicates incompleteness.");
+
+    if ((!htmlChunkResult || htmlChunkResult.trim() === "") && !isActuallyComplete && input.previousContent) {
+        // If it's a continuation and we get no new code but it's not marked complete,
+        // it might be an LLM error or it genuinely thinks it's done but forgot the marker.
+        // For now, let's assume it's complete to avoid infinite loops.
+        // More sophisticated error handling could be added here.
+        console.warn("AI returned empty chunk during continuation but indicated incompleteness. Forcing completion.");
+        isActuallyComplete = true;
     }
+    
+    // Ensure that if it's marked complete, we don't have the marker
+    if (isActuallyComplete && htmlChunkResult.includes(marker)) {
+        htmlChunkResult = htmlChunkResult.replace(marker, "").trimEnd();
+    }
+
 
     return { htmlChunk: htmlChunkResult, isComplete: isActuallyComplete };
   }

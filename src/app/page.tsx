@@ -1,25 +1,27 @@
+
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, UploadCloud, Copy, AlertTriangle, Image as ImageIcon, Sparkles, Code, MonitorSmartphone, Eye, Palette, BrainCircuit } from 'lucide-react';
+import { Loader2, UploadCloud, Copy, AlertTriangle, Image as ImageIcon, Sparkles, Code, MonitorSmartphone, Eye, Palette, BrainCircuit, Eraser } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { generateWebpageAction } from './actions';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ImageUpload } from '@/components/ImageUpload';
+import { Progress } from "@/components/ui/progress";
 
-const MAX_ATTEMPTS = 5; // Maximum number of chunks/attempts
+const MAX_ATTEMPTS = 10; // Increased max attempts for potentially longer content
 
 export default function HomePage() {
   const [originalImage, setOriginalImage] = useState<string | null>(null);
-  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const [generatedCode, setGeneratedCode] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isGenerationComplete, setIsGenerationComplete] = useState<boolean>(true);
   const [progressMessage, setProgressMessage] = useState<string>("");
-  const [attempts, setAttempts] = useState(0);
+  const [currentAttempt, setCurrentAttempt] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -29,27 +31,27 @@ export default function HomePage() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setOriginalImage(reader.result as string);
-        setGeneratedCode(null);
+        setGeneratedCode("");
         setError(null);
         setIsGenerationComplete(true);
         setProgressMessage("");
-        setAttempts(0);
+        setCurrentAttempt(0);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const clearImage = () => {
+  const clearImage = useCallback(() => {
     setOriginalImage(null);
-    setGeneratedCode(null);
+    setGeneratedCode("");
     setError(null);
     setIsGenerationComplete(true);
     setProgressMessage("");
-    setAttempts(0);
+    setCurrentAttempt(0);
     if (fileInputRef.current) {
       fileInputRef.current.value = ""; // Reset file input
     }
-  };
+  }, []);
 
   const handleGenerateClick = async () => {
     if (!originalImage) {
@@ -62,21 +64,22 @@ export default function HomePage() {
     }
     setIsLoading(true);
     setError(null);
-    setGeneratedCode(""); // Clear previous code
+    setGeneratedCode("");
     setIsGenerationComplete(false);
     setProgressMessage("Initializing generation...");
-    setAttempts(0);
+    setCurrentAttempt(0);
 
     let accumulatedCode = "";
     let complete = false;
-    let currentAttempt = 0;
+    let attempt = 0;
 
-    while (currentAttempt < MAX_ATTEMPTS && !complete) {
-      currentAttempt++;
-      setAttempts(currentAttempt); // Update attempts for progress bar
-      setProgressMessage(`Generating code chunk ${currentAttempt}/${MAX_ATTEMPTS}...`);
+    while (attempt < MAX_ATTEMPTS && !complete) {
+      attempt++;
+      setCurrentAttempt(attempt);
+      setProgressMessage(`Generating code (chunk ${attempt}/${MAX_ATTEMPTS})...`);
+      
       try {
-        const result = await generateWebpageAction(originalImage, currentAttempt > 1 ? accumulatedCode : undefined);
+        const result = await generateWebpageAction(originalImage, attempt > 1 ? accumulatedCode : undefined, attempt);
 
         if (result.error) {
           setError(result.error);
@@ -85,12 +88,12 @@ export default function HomePage() {
             description: result.error,
             variant: "destructive",
           });
-          if (result.generatedCode) { // Still display partial code if any
+          if (result.generatedCode) { 
              accumulatedCode += result.generatedCode;
              setGeneratedCode(accumulatedCode);
           }
           setIsGenerationComplete(true);
-          setProgressMessage("Generation failed.");
+          setProgressMessage(`Generation failed at chunk ${attempt}.`);
           break; 
         }
 
@@ -105,15 +108,14 @@ export default function HomePage() {
         if (!complete && result.generatedCode) {
           toast({
             title: "Processing...",
-            description: `Chunk ${currentAttempt} received. Continuing generation.`,
+            description: `Chunk ${attempt} received. Continuing generation.`,
             duration: 3000,
           });
-        } else if (!complete && !result.generatedCode && currentAttempt > 1) {
-           // If AI says not complete but sends no code (and it's not the first chunk), assume it's done or errored.
-           console.warn("AI returned no new content during continuation but indicated it's not complete. Assuming completion.");
+        } else if (!complete && !result.generatedCode && attempt > 1) {
+           console.warn(`AI returned no new content during continuation (attempt ${attempt}) but indicated it's not complete. Assuming completion to prevent loop.`);
            complete = true;
            setIsGenerationComplete(true);
-           setProgressMessage("Generation finished. Review the output.");
+           setProgressMessage("Generation process ended. Review the output.");
         }
 
       } catch (e: any) {
@@ -125,19 +127,20 @@ export default function HomePage() {
           description: errorMessage,
           variant: "destructive",
         });
-        setIsGenerationComplete(true); // Stop further attempts
+        setIsGenerationComplete(true); 
         setProgressMessage("Generation critically failed.");
         break; 
       }
     }
 
-    if (!complete && currentAttempt >= MAX_ATTEMPTS && accumulatedCode) {
+    if (!complete && attempt >= MAX_ATTEMPTS && accumulatedCode) {
         toast({
           title: "Generation Halted",
           description: `Reached maximum ${MAX_ATTEMPTS} attempts. The content might be truncated.`,
           variant: "default",
         });
         setProgressMessage(`Max ${MAX_ATTEMPTS} attempts reached. Content may be partial.`);
+        setIsGenerationComplete(true); // Mark as complete to hide progress bar
     } else if (complete && accumulatedCode) {
          toast({
           title: "Success!",
@@ -146,7 +149,7 @@ export default function HomePage() {
           className: "bg-green-600 text-white border-green-700"
         });
         setProgressMessage("Generation Complete!");
-    } else if (!accumulatedCode && !error && !isLoading) { // Check !isLoading to avoid this on initial load
+    } else if (!accumulatedCode && !error) {
         setError("AI did not generate any code. Please try a different image or check AI service status.");
         toast({
           title: "No Code Generated",
@@ -154,6 +157,7 @@ export default function HomePage() {
           variant: "destructive",
         });
         setProgressMessage("No code generated.");
+        setIsGenerationComplete(true); // Mark as complete as there's nothing to wait for
     }
     
     setIsLoading(false);
@@ -171,7 +175,7 @@ export default function HomePage() {
         });
     }
   };
-
+  
   const FeatureCard = ({ icon: Icon, title, description }: { icon: React.ElementType, title: string, description: string }) => (
     <Card className="bg-card/70 backdrop-blur-sm border-border/30 hover:shadow-lg transition-shadow">
       <CardHeader className="flex flex-row items-center gap-4 pb-2">
@@ -200,7 +204,7 @@ export default function HomePage() {
         </p>
       </header>
 
-      <main className="w-full max-w-4xl flex flex-col items-center gap-8"> {/* Reduced max-width for better focus */}
+      <main className="w-full max-w-4xl flex flex-col items-center gap-8">
         <Card className="w-full shadow-2xl bg-card/90 backdrop-blur-lg border border-border/60 rounded-xl overflow-hidden transform hover:scale-[1.01] transition-transform duration-300">
           <CardHeader className="pb-4 bg-gradient-to-r from-primary/5 to-accent/5">
             <CardTitle className="text-2xl md:text-3xl font-headline text-primary flex items-center justify-center sm:justify-start">
@@ -211,32 +215,35 @@ export default function HomePage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-6 p-6 md:p-8">
-            <ImageUpload
+             <ImageUpload
               onImageSelect={handleImageUpload}
               disabled={isLoading}
               ref={fileInputRef}
               currentImage={originalImage}
               onClearImage={clearImage}
             />
-            <Button
-              onClick={handleGenerateClick}
-              disabled={!originalImage || isLoading}
-              size="lg"
-              className="w-full md:w-auto bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground font-semibold py-3 px-10 text-lg rounded-lg shadow-lg hover:shadow-xl transform transition-all duration-300 ease-in-out hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  <span>{progressMessage || "Generating..."}</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-5 w-5" />
-                  Generate Code
-                </>
-              )}
-            </Button>
-            {isLoading && (
+            {originalImage && (
+              <Button
+                onClick={handleGenerateClick}
+                disabled={isLoading}
+                size="lg"
+                className="w-full md:w-auto bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground font-semibold py-3 px-10 text-lg rounded-lg shadow-lg hover:shadow-xl transform transition-all duration-300 ease-in-out hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    <span>{progressMessage || "Generating..."}</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-5 w-5" />
+                    Generate Code
+                  </>
+                )}
+              </Button>
+            )}
+
+            {isLoading && currentAttempt > 0 && (
                 <div className="w-full max-w-md mt-4">
                     <div className="relative pt-1">
                          <div className="flex mb-2 items-center justify-between">
@@ -247,13 +254,12 @@ export default function HomePage() {
                             </div>
                             <div className="text-right">
                                 <span className="text-xs font-semibold inline-block text-primary">
-                                    {Math.round((attempts / MAX_ATTEMPTS) * 100)}%
+                                    {Math.round((currentAttempt / MAX_ATTEMPTS) * 100)}% ({currentAttempt}/{MAX_ATTEMPTS})
                                 </span>
                             </div>
                         </div>
-                        <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-primary/20">
-                            <div style={{ width: `${(attempts / MAX_ATTEMPTS) * 100}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-gradient-to-r from-primary to-accent transition-all duration-500"></div>
-                        </div>
+                        <Progress value={(currentAttempt / MAX_ATTEMPTS) * 100} className="h-2" />
+                         {progressMessage && !isGenerationComplete && <p className="text-xs text-muted-foreground mt-1 text-center">{progressMessage}</p>}
                     </div>
                 </div>
             )}
@@ -270,7 +276,7 @@ export default function HomePage() {
             </CardHeader>
             <CardContent className="p-0">
               <p className="font-body text-sm">{error}</p>
-               {generatedCode && ( // Show partially generated code even on error if available
+               {generatedCode && (
                  <div className="mt-4">
                     <p className="text-sm font-medium mb-1">Partially generated code (if any):</p>
                     <ScrollArea className="h-[150px] w-full rounded-md border bg-background/50 p-3">
@@ -290,6 +296,7 @@ export default function HomePage() {
               </CardTitle>
               <CardDescription className="font-body text-base text-muted-foreground">
                 Preview the generated webpage or view the HTML code.
+                {isLoading && !isGenerationComplete && <span className="ml-2 text-sm text-yellow-500 animate-pulse">Waiting for more content...</span>}
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6 pt-0 flex-grow flex flex-col">
@@ -303,8 +310,8 @@ export default function HomePage() {
                   </TabsTrigger>
                 </TabsList>
                 <TabsContent value="preview" className="flex-grow">
-                  <div className="aspect-video w-full h-full relative bg-muted/20 rounded-lg overflow-hidden border border-border shadow-inner">
-                    {isLoading && !generatedCode && ( 
+                  <div className="aspect-video w-full h-full min-h-[300px] relative bg-muted/20 rounded-lg overflow-hidden border border-border shadow-inner">
+                    {(isLoading && !generatedCode) && ( 
                       <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/90 backdrop-blur-sm z-10">
                         <Loader2 className="h-12 w-12 animate-spin text-primary" />
                         <p className="mt-4 text-muted-foreground font-body">Crafting your webpage...</p>
@@ -315,7 +322,7 @@ export default function HomePage() {
                         srcDoc={generatedCode}
                         title="Generated Webpage Preview"
                         className="w-full h-full border-0"
-                        sandbox="allow-scripts allow-same-origin"
+                        sandbox="allow-scripts allow-same-origin" // allow-same-origin might be needed if CSS uses relative paths for fonts, etc. Be cautious.
                       />
                     ) : (
                      !isLoading && (
@@ -351,9 +358,9 @@ export default function HomePage() {
                         </div>
                       )}
                     </ScrollArea>
-                     {!isGenerationComplete && generatedCode && !isLoading && (
+                     {!isGenerationComplete && generatedCode && isLoading && (
                        <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2 text-center animate-pulse">
-                         Generating more content... Please wait.
+                         Generating more content... Please wait. ({currentAttempt}/{MAX_ATTEMPTS})
                        </p>
                      )}
                   </div>
@@ -391,6 +398,10 @@ export default function HomePage() {
               <p className="text-muted-foreground font-body text-lg max-w-md mx-auto">
                 Upload an image of your UI mockup and watch as AI crafts the foundational code for you.
               </p>
+               <Button onClick={() => fileInputRef.current?.click()} className="mt-6" size="lg">
+                <UploadCloud className="mr-2 h-5 w-5" />
+                Upload Your Image
+              </Button>
             </CardContent>
           </Card>
         )}
