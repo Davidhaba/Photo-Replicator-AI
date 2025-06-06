@@ -1,3 +1,4 @@
+
 'use client';
 import React, { forwardRef, useId, useState, useCallback } from 'react';
 import { UploadCloud, Image as ImageIcon, X, FileWarning } from 'lucide-react';
@@ -58,6 +59,11 @@ export const ImageUpload = forwardRef<HTMLInputElement, ImageUploadProps>(
         const file = event.target.files[0];
         if (validateAndProceed(file)) {
           onImageSelect(event);
+        } else {
+          // Clear the input if validation fails
+          if (ref && typeof ref === 'object' && ref.current) {
+            ref.current.value = "";
+          }
         }
       }
     };
@@ -83,17 +89,29 @@ export const ImageUpload = forwardRef<HTMLInputElement, ImageUploadProps>(
       }
       const file = event.dataTransfer.files[0];
       if (validateAndProceed(file)) {
-        const syntheticEvent = {
-          target: { files: event.dataTransfer.files }
-        } as unknown as React.ChangeEvent<HTMLInputElement>;
-        onImageSelect(syntheticEvent);
+        // Create a new FileList and assign it to the input to trigger onChange
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        if (ref && typeof ref === 'object' && ref.current) {
+          ref.current.files = dataTransfer.files;
+          // Manually trigger the change event
+          const changeEvent = new Event('change', { bubbles: true });
+          ref.current.dispatchEvent(changeEvent);
+        }
       }
       event.dataTransfer.clearData();
     };
     
-    const triggerFileInput = () => {
+    const internalClearImage = (e?: React.MouseEvent<HTMLButtonElement>) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      if (onClearImage) {
+        onClearImage();
+      }
       if (ref && typeof ref === 'object' && ref.current) {
-        ref.current.click();
+        ref.current.value = "";
       }
     };
 
@@ -102,49 +120,41 @@ export const ImageUpload = forwardRef<HTMLInputElement, ImageUploadProps>(
         <Label
           htmlFor={inputId}
           className={cn(
-            "w-full p-6 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all duration-300 ease-in-out group",
+            "w-full p-6 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all duration-300 ease-in-out group relative", // Added relative positioning
             disabled ? "bg-muted/50 cursor-not-allowed opacity-60" : "hover:border-primary/80 hover:bg-primary/5",
             dragOver ? "border-primary bg-primary/10 ring-2 ring-primary ring-offset-2" : "border-border",
-            currentImage ? "min-h-[200px] md:min-h-[300px] aspect-auto" : "min-h-[200px] md:min-h-[250px]"
+            currentImage ? "min-h-[250px] md:min-h-[350px]" : "min-h-[200px] md:min-h-[250px]"
           )}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          onClick={() => !disabled && triggerFileInput()} // Make the whole label clickable
         >
           {currentImage ? (
-            <div className="relative w-full h-full max-h-[400px] flex items-center justify-center">
-              <NextImage 
-                src={currentImage} 
-                alt="Uploaded preview" 
-                layout="intrinsic" // Use intrinsic to maintain aspect ratio within the container
-                width={500} // Provide a base width, Next.js will optimize
-                height={300} // Provide a base height
-                objectFit="contain" 
-                className="rounded-md" 
-              />
+            <div className="w-full h-full flex flex-col items-center justify-center">
+              <div className="relative w-full flex-grow" style={{ maxHeight: 'calc(100% - 40px)' }}> {/* Adjusted for button space */}
+                <NextImage 
+                  src={currentImage} 
+                  alt="Uploaded preview" 
+                  layout="fill" 
+                  objectFit="contain" 
+                  className="rounded-md"
+                />
+              </div>
               {!disabled && onClearImage && (
                 <Button
                   type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute top-2 right-2 h-8 w-8 rounded-full bg-black/50 hover:bg-black/70 text-white opacity-75 group-hover:opacity-100 transition-opacity z-10"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation(); // Prevent label click from re-opening file dialog
-                    if (onClearImage) onClearImage();
-                    if (ref && typeof ref === 'object' && ref.current) {
-                        ref.current.value = "";
-                    }
-                  }}
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 z-10" // Ensure button is above image if overlap occurs
+                  onClick={internalClearImage}
                   aria-label="Remove image"
                 >
-                  <X className="h-5 w-5" />
+                  <X className="h-4 w-4 mr-1.5" /> Clear Image
                 </Button>
               )}
             </div>
           ) : (
-            <div className="text-center pointer-events-none"> {/* Prevent text selection during drag */}
+            <div className="text-center pointer-events-none">
               <UploadCloud className={cn(
                 "w-16 h-16 md:w-20 md:h-20 mx-auto mb-4", 
                 dragOver ? "text-primary" : "text-muted-foreground group-hover:text-primary/80 transition-colors"
@@ -166,7 +176,7 @@ export const ImageUpload = forwardRef<HTMLInputElement, ImageUploadProps>(
           type="file"
           className="hidden"
           accept="image/png,image/jpeg,image/webp,image/gif"
-          onChange={handleFileChange}
+          onChange={handleFileChange} // Use the modified handler
           disabled={disabled}
           ref={ref}
         />
@@ -176,3 +186,5 @@ export const ImageUpload = forwardRef<HTMLInputElement, ImageUploadProps>(
 );
 
 ImageUpload.displayName = 'ImageUpload';
+
+    
