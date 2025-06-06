@@ -23,6 +23,7 @@ export type GenerateWebpageInput = z.infer<typeof GenerateWebpageInputSchema>;
 const GenerateWebpageOutputSchema = z.object({
   htmlContent: z
     .string()
+    .optional()
     .describe('A single string containing the full HTML and embedded CSS code for the webpage that visually replicates the input image.'),
 });
 export type GenerateWebpageOutput = z.infer<typeof GenerateWebpageOutputSchema>;
@@ -35,7 +36,7 @@ const generateWebpagePrompt = ai.definePrompt({
   name: 'generateWebpagePrompt',
   input: {schema: GenerateWebpageInputSchema},
   output: {schema: GenerateWebpageOutputSchema},
-  model: 'googleai/gemini-1.5-pro-latest', // Explicitly use a model with larger output capabilities
+  model: 'googleai/gemini-1.5-pro-latest', 
   prompt: `You are an expert web developer AI specializing in converting images into **hyper-realistic, single-file HTML webpages**.
 Your task is to analyze the provided image and generate an **exact 1:1, visually indistinguishable, pixel-perfect clone** of it as a complete HTML document.
 The goal is to produce an HTML/CSS webpage that is **indistinguishable** from the source image down to the **smallest detail**. Every visual element, no matter how small or complex, MUST be replicated with extreme precision.
