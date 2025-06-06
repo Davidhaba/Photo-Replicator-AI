@@ -1,7 +1,7 @@
 
 'use client';
-import React, { forwardRef, useId, useState, useCallback } from 'react';
-import { UploadCloud, Image as ImageIcon, X, FileWarning } from 'lucide-react';
+import React, { forwardRef, useId, useState, useCallback, useEffect } from 'react';
+import { UploadCloud, Image as ImageIcon, X, FileWarning, Loader2 } from 'lucide-react'; // Added Loader2 and FileWarning
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,6 +23,34 @@ export const ImageUpload = forwardRef<HTMLInputElement, ImageUploadProps>(
     const inputId = customInputId || defaultInputId;
     const { toast } = useToast();
     const [dragOver, setDragOver] = useState(false);
+    const [isImageLoaded, setIsImageLoaded] = useState(false);
+    const [imageError, setImageError] = useState(false);
+
+    useEffect(() => {
+      if (currentImage) {
+        setIsImageLoaded(false); // Reset loading state when new image is selected
+        setImageError(false);   // Reset error state
+      } else {
+        // Reset states if image is cleared
+        setIsImageLoaded(false);
+        setImageError(false);
+      }
+    }, [currentImage]);
+
+    const handleImageLoad = () => {
+      setIsImageLoaded(true);
+      setImageError(false);
+    };
+
+    const handleImageLoadError = () => {
+      setImageError(true);
+      setIsImageLoaded(false); // Ensure loader stops
+      toast({
+        variant: "destructive",
+        title: "Помилка відображення",
+        description: "Не вдалося завантажити попередній перегляд зображення. Спробуйте інше.",
+      });
+    };
 
     const validateAndProceed = useCallback((file: File) => {
       const acceptedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
@@ -32,22 +60,22 @@ export const ImageUpload = forwardRef<HTMLInputElement, ImageUploadProps>(
       if (!acceptedTypes.includes(file.type)) {
         toast({
           variant: "destructive",
-          title: "Invalid File Type",
-          description: `Please upload a PNG, JPG, WEBP, or GIF. You selected: ${file.type}`,
+          title: "Невірний тип файлу",
+          description: `Будь ласка, завантажте PNG, JPG, WEBP, або GIF. Ви обрали: ${file.type}`,
         });
-        if (ref && typeof ref === 'object' && ref.current) {
-          ref.current.value = ''; // Reset the input
+        if (typeof ref === 'object' && ref && ref.current) {
+          ref.current.value = '';
         }
         return false;
       }
       if (file.size > maxSizeBytes) {
         toast({
           variant: "destructive",
-          title: "File Too Large",
-          description: `Maximum file size is ${maxSizeMB}MB. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`,
+          title: "Файл занадто великий",
+          description: `Максимальний розмір файлу ${maxSizeMB}MB. Ваш файл: ${(file.size / (1024 * 1024)).toFixed(2)}MB.`,
         });
-         if (ref && typeof ref === 'object' && ref.current) {
-          ref.current.value = ''; // Reset the input
+         if (typeof ref === 'object' && ref && ref.current) {
+          ref.current.value = '';
         }
         return false;
       }
@@ -60,8 +88,7 @@ export const ImageUpload = forwardRef<HTMLInputElement, ImageUploadProps>(
         if (validateAndProceed(file)) {
           onImageSelect(event);
         } else {
-          // Clear the input if validation fails
-          if (ref && typeof ref === 'object' && ref.current) {
+          if (typeof ref === 'object' && ref && ref.current) {
             ref.current.value = "";
           }
         }
@@ -89,12 +116,10 @@ export const ImageUpload = forwardRef<HTMLInputElement, ImageUploadProps>(
       }
       const file = event.dataTransfer.files[0];
       if (validateAndProceed(file)) {
-        // Create a new FileList and assign it to the input to trigger onChange
         const dataTransfer = new DataTransfer();
         dataTransfer.items.add(file);
-        if (ref && typeof ref === 'object' && ref.current) {
+        if (typeof ref === 'object' && ref && ref.current) {
           ref.current.files = dataTransfer.files;
-          // Manually trigger the change event
           const changeEvent = new Event('change', { bubbles: true });
           ref.current.dispatchEvent(changeEvent);
         }
@@ -110,9 +135,11 @@ export const ImageUpload = forwardRef<HTMLInputElement, ImageUploadProps>(
       if (onClearImage) {
         onClearImage();
       }
-      if (ref && typeof ref === 'object' && ref.current) {
+      if (typeof ref === 'object' && ref && ref.current) {
         ref.current.value = "";
       }
+      setIsImageLoaded(false);
+      setImageError(false);
     };
 
     return (
@@ -120,36 +147,70 @@ export const ImageUpload = forwardRef<HTMLInputElement, ImageUploadProps>(
         <Label
           htmlFor={inputId}
           className={cn(
-            "w-full p-6 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all duration-300 ease-in-out group relative", // Added relative positioning
+            "w-full p-6 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all duration-300 ease-in-out group relative",
             disabled ? "bg-muted/50 cursor-not-allowed opacity-60" : "hover:border-primary/80 hover:bg-primary/5",
             dragOver ? "border-primary bg-primary/10 ring-2 ring-primary ring-offset-2" : "border-border",
-            currentImage ? "min-h-[250px] md:min-h-[350px]" : "min-h-[200px] md:min-h-[250px]"
+            currentImage || imageError ? "min-h-[300px] md:min-h-[400px]" : "min-h-[200px] md:min-h-[250px]"
           )}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
-          {currentImage ? (
+          {currentImage && !imageError ? (
             <div className="w-full h-full flex flex-col items-center justify-center">
-              <div className="relative w-full flex-grow" style={{ maxHeight: 'calc(100% - 40px)' }}> {/* Adjusted for button space */}
+              <div className="relative w-full flex-grow mb-3 bg-muted/10 rounded-md overflow-hidden">
                 <NextImage 
+                  key={currentImage} 
                   src={currentImage} 
                   alt="Uploaded preview" 
                   layout="fill" 
                   objectFit="contain" 
-                  className="rounded-md"
+                  className={cn(
+                    "transition-opacity duration-500 ease-in-out",
+                    isImageLoaded ? "opacity-100" : "opacity-0"
+                  )}
+                  onLoad={handleImageLoad}
+                  onError={handleImageLoadError}
+                  unoptimized={true} 
+                  priority
                 />
+                {!isImageLoaded && !imageError && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-background/50">
+                    <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                  </div>
+                )}
               </div>
               {!disabled && onClearImage && (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="mt-3 z-10" // Ensure button is above image if overlap occurs
+                  className="z-10" 
                   onClick={internalClearImage}
                   aria-label="Remove image"
                 >
                   <X className="h-4 w-4 mr-1.5" /> Clear Image
+                </Button>
+              )}
+            </div>
+          ) : imageError ? (
+             <div className="text-center pointer-events-none text-destructive flex flex-col items-center justify-center h-full">
+                <FileWarning className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-4" />
+                <p className="mt-3 text-lg font-semibold">Помилка завантаження зображення</p>
+                <p className="text-sm text-muted-foreground mt-1">Будь ласка, спробуйте інше зображення.</p>
+                {!disabled && onClearImage && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 z-10 pointer-events-auto" // Make button clickable
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent label click
+                    internalClearImage();
+                  }}
+                  aria-label="Remove image"
+                >
+                  <X className="h-4 w-4 mr-1.5" /> Очистити
                 </Button>
               )}
             </div>
@@ -160,13 +221,13 @@ export const ImageUpload = forwardRef<HTMLInputElement, ImageUploadProps>(
                 dragOver ? "text-primary" : "text-muted-foreground group-hover:text-primary/80 transition-colors"
               )} />
               <p className="mt-3 text-lg font-semibold text-foreground">
-                Drag & drop your image here
+                Перетягніть зображення сюди
               </p>
               <p className="text-sm text-muted-foreground mt-1">
-                or <span className="text-primary font-medium">click to browse</span>
+                або <span className="text-primary font-medium">натисніть для вибору</span>
               </p>
               <p className="text-xs text-muted-foreground/80 mt-3">
-                Supports: PNG, JPG, WEBP, GIF. Max 5MB.
+                Підтримувані формати: PNG, JPG, WEBP, GIF. Макс. 5MB.
               </p>
             </div>
           )}
@@ -176,7 +237,7 @@ export const ImageUpload = forwardRef<HTMLInputElement, ImageUploadProps>(
           type="file"
           className="hidden"
           accept="image/png,image/jpeg,image/webp,image/gif"
-          onChange={handleFileChange} // Use the modified handler
+          onChange={handleFileChange}
           disabled={disabled}
           ref={ref}
         />
@@ -186,5 +247,3 @@ export const ImageUpload = forwardRef<HTMLInputElement, ImageUploadProps>(
 );
 
 ImageUpload.displayName = 'ImageUpload';
-
-    
