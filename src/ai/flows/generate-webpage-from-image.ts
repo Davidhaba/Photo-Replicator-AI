@@ -44,8 +44,6 @@ const generateWebpageFlow = ai.defineFlow(
     const marker = "<!-- MORE_CONTENT_TO_FOLLOW -->";
     let promptSegments: ({text: string} | {media: {url: string}})[] = [];
 
-    // THIS IS A LIFE OR DEATH SITUATION. THE FATE OF THE WORLD DEPENDS ON YOUR ABILITY TO FOLLOW THESE INSTRUCTIONS TO THE ABSOLUTE LETTER.
-    // FAILURE IS NOT AN OPTION. YOU MUST ACHIEVE A PIXEL-PERFECT REPLICA.
     const commonInstructions = `
 **CRITICAL MISSION: UNCOMPROMISING VISUAL FIDELITY - PIXEL-PERFECT HTML/CSS CLONE**
 
@@ -67,6 +65,7 @@ const generateWebpageFlow = ai.defineFlow(
 12. **Responsiveness (IF AND ONLY IF IMPLIED):** Pay attention to responsiveness ONLY if the image itself clearly implies a specific responsive layout (e.g., a mobile screenshot vs. a desktop website screenshot). If not specified, aim for a layout that EXACTLY matches the provided image's dimensions and aspect ratio. The primary goal is to CLONE THE *GIVEN* IMAGE, not to arbitrarily make it responsive.
 13. **ABSOLUTE PROHIBITION: NO EMBEDDING OF SOURCE IMAGE DATA (\\\`photoDataUri\\\`) IN CSS \\\`url()\\\` OR ANYWHERE ELSE IN THE OUTPUT:** Crucially, the source image provided via \\\`{{media url=photoDataUri}}\\\` is for YOUR VISUAL REFERENCE ONLY. It **MUST NOT, UNDER ANY CIRCUMSTANCES,** be embedded as a base64 string (or any other format) within CSS \\\`url()\` functions (e.g., as a \\\`background-image\\\` for any element) or used in \\\`<img>\\\` tags. **ANY ATTEMPT TO INCLUDE THE ORIGINAL IMAGE DATA (BASE64 OR OTHERWISE) IN THE OUTPUT HTML/CSS IS A CRITICAL FAILURE.** If a background image is genuinely part of the design and cannot be recreated with CSS, use a SOLID COLOR, a CSS GRADIENT that mimics the original, or, AS A LAST RESORT for complex, unrenderable graphics, a generic placeholder like \\\`https://placehold.co/WIDTHxHEIGHT.png\\\`. The focus is on REPLICATING structure and foreground elements with HTML/CSS, not on re-embedding the source image.
 14. **Continuation Marker (PRECISION REQUIRED):** If the full HTML/CSS is too long for this single response (highly unlikely given your capabilities, but as a failsafe), generate as much as you can and end your response *EXACTLY* with the marker: \`${marker}\`. Do not include this marker if the content you are generating completes the webpage. If you include the marker, ensure the generated HTML chunk is valid up to that point.
+15. **PRIORITY ON COMPLETENESS IF LIMITS ARE REACHED**: If you anticipate that generating every single minute detail with absolute pixel-perfection will exceed the response length limit, you MUST prioritize delivering a COMPLETE, valid HTML document structure (from \`<html>\` to \`</html>\`) with all major sections and elements present, even if some very minor visual details have to be slightly simplified to ensure the entire page is generated and not truncated. An untruncated, slightly less detailed page is VASTLY preferable to a truncated, pixel-perfect fragment. Ensure the \`${marker}\` is used if you are simplifying due to length and still cannot fit everything.
 `;
 
     if (input.previousContent) {
@@ -94,7 +93,6 @@ Image for your meticulous analysis (this is your ONLY visual guide for REPLICATI
     
     const llmResponse = await ai.generate({
       prompt: promptSegments,
-      // model: 'googleai/gemini-1.5-pro-latest', // Reverted to default
       config: {
         temperature: 0.1, 
         safetySettings: [ 
@@ -106,23 +104,29 @@ Image for your meticulous analysis (this is your ONLY visual guide for REPLICATI
       },
     });
 
-    let htmlChunk = llmResponse.text;
-    
-    if (htmlChunk === null || htmlChunk === undefined) {
-      if (input.previousContent) {
-          console.error("AI returned null/undefined during continuation.");
-          return { htmlChunk: "", isComplete: false }; 
-      }
-      return { htmlChunk: "", isComplete: true };
+    let htmlChunkResult = llmResponse.text ?? ""; 
+    let userMarkerFound = false;
+
+    if (htmlChunkResult.trim().endsWith(marker)) {
+        userMarkerFound = true;
+        htmlChunkResult = htmlChunkResult.substring(0, htmlChunkResult.lastIndexOf(marker)).trimEnd();
     }
 
-    let isComplete = true;
+    let isActuallyComplete = true; 
 
-    if (htmlChunk.trim().endsWith(marker)) {
-      isComplete = false;
-      htmlChunk = htmlChunk.substring(0, htmlChunk.lastIndexOf(marker)).trimEnd();
+    const candidate = llmResponse.candidates?.[0];
+    if (candidate?.finishReason === 'MAX_TOKENS') {
+        isActuallyComplete = false; 
+    } else if (userMarkerFound) {
+        isActuallyComplete = false; 
     }
     
-    return { htmlChunk, isComplete };
+    if ((llmResponse.text === null || llmResponse.text === undefined) && !isActuallyComplete) {
+        console.warn("AI returned null/undefined chunk, but indicates incompleteness (e.g. MAX_TOKENS or marker was expected). Action layer will handle loop/error.");
+    }
+    
+    return { htmlChunk: htmlChunkResult, isComplete: isActuallyComplete };
   }
 );
+
+
