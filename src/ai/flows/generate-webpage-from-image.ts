@@ -45,13 +45,13 @@ const generateWebpageFlow = ai.defineFlow(
     let promptSegments: ({text: string} | {media: {url: string}})[] = [];
 
     const commonInstructions = `
-You are a world-class, hyper-specialized AI web development agent. Your sole mission is to transform the provided image into a flawless, production-ready HTML/CSS webpage. The standard for success is nothing less than a visually indistinguishable, pixel-perfect replica.
+You are a world-class, hyper-specialized AI web development agent, a master of HTML and CSS. Your sole mission, of paramount importance, is to transform the provided image into a flawless, production-ready HTML/CSS webpage. The standard for success is nothing less than a visually indistinguishable, pixel-perfect replica. The final rendered webpage must be a **pixel-for-pixel perfect replica** of the source image, so much so that it would be impossible to tell the difference.
 
-**MANDATORY DIRECTIVES (DEVIATION IS CATASTROPHIC):**
+**MANDATORY DIRECTIVES (DEVIATION IS CATASTROPHIC AND WILL RESULT IN MISSION FAILURE):**
 
 1.  **Output Format (ABSOLUTE):** The output MUST be a single string containing a COMPLETE HTML document: \`<html>\`, \`<head>\` (with \`<style>\` tags), and \`<body>\`.
 2.  **Embedded CSS ONLY (NO EXCEPTIONS):** ALL CSS styles required for this **PERFECT VISUAL REPLICA** (layout, colors, fonts, spacing, borders, shadows, gradients, ALL graphical elements, intricate patterns, textual content) MUST be embedded DIRECTLY within the HTML using \`<style>\` tags in the \`<head>\` or inline styles. **ABSOLUTELY NO EXTERNAL CSS FILES. NO LINKED STYLESHEETS.**
-3.  **UNCOMPROMISING, FORENSIC-LEVEL DETAIL REPLICATION (PIXEL-PERFECT OR FAIL):** Your ultimate, singular goal is a **pixel-for-pixel, visually indistinguishable clone**. Achieve **PERFECT, FLAWLESS visual accuracy**. Pay **OBSESSIVE, ALMOST SUPERHUMAN attention** to the precise positioning (x, y coordinates to the exact pixel), dimensions (width, height to the exact pixel), colors (extract or infer EXACT hex/RGB/HSL values), font styles (if identifiable, use the EXACT font; otherwise, find the CLOSEST web-safe match that REPLICATES the visual character, weight, size, letter spacing, line height), spacing (margins, padding), borders (thickness, style, color, radius), shadows (offset, blur, color, spread), gradients (type, direction, color stops), and **EVERY SINGLE VISUAL ATTRIBUTE** present in the image. **ABSOLUTELY NO DETAIL IS TOO SMALL TO BE IGNORED. DO NOT SIMPLIFY, APPROXIMATE, OR OMIT ANY VISUAL ELEMENT OR ATTRIBUTE FOR BREVITY, PERFORMANCE, OR ANY OTHER REASON IF IT COMPROMISES THE PIXEL-PERFECT VISUAL FIDELITY TO THE ORIGINAL IMAGE. IF A VISUAL EFFECT EXISTS IN THE IMAGE, IT MUST BE REPLICATED IN THE HTML/CSS.**
+3.  **UNCOMPROMISING, METICULOUS, FORENSIC-LEVEL DETAIL REPLICATION (PIXEL-PERFECT OR FAIL):** Your ultimate, singular goal is a **pixel-for-pixel, visually INDISTINGUISHABLE clone**. Achieve **PERFECT, FLAWLESS visual accuracy**. Pay **OBSESSIVE, ALMOST SUPERHUMAN attention** to the precise positioning (x, y coordinates to the exact pixel), dimensions (width, height to the exact pixel), colors (extract or infer EXACT hex/RGB/HSL values), font styles (if identifiable, use the EXACT font; otherwise, find the CLOSEST web-safe match that REPLICATES the visual character, weight, size, letter spacing, line height), spacing (margins, padding), borders (thickness, style, color, radius), shadows (offset, blur, color, spread), gradients (type, direction, color stops), and **EVERY SINGLE VISUAL ATTRIBUTE** present in the image. **ABSOLUTELY NO DETAIL IS TOO SMALL TO BE IGNORED. DO NOT SIMPLIFY, APPROXIMATE, OR OMIT ANY VISUAL ELEMENT OR ATTRIBUTE FOR BREVITY, PERFORMANCE, OR ANY OTHER REASON IF IT COMPROMISES THE PIXEL-PERFECT VISUAL FIDELITY TO THE ORIGINAL IMAGE. IF A VISUAL EFFECT EXISTS IN THE IMAGE, IT MUST BE REPLICATED IN THE HTML/CSS.**
     **Subtle Enhancements (Optional, with Extreme Caution):** While the primary objective is an exact replica, if you identify an opportunity to subtly enhance the visual appeal or user experience (e.g., slightly refining a shadow for better depth, ensuring perfect font anti-aliasing, or improving a gradient for smoother transition) *without deviating from the core design, spirit, and layout of the original image*, you may apply such minor, tasteful improvements. **These enhancements must be virtually unnoticeable as deviations and should only serve to make the replica even more polished and professional. If in doubt, prioritize exact replication.**
 4.  **Text Replication (PERFECTION REQUIRED):** If the image contains text, replicate it with **ABSOLUTE PRECISION** regarding font family, size, weight, color, alignment, and placement. If an exact font match is impossible, choose the closest common web-safe alternative that PRESERVES THE EXACT VISUAL CHARACTER.
 5.  **Structural and Visual Integrity (FLAWLESS):** Recreate the structural layout, color palette, and ALL key visual elements from the image with the **HIGHEST POSSIBLE FIDELITY**. Imagine you are creating a perfect digital forgery of the image using only HTML and CSS. The output must be a **pixel-for-pixel representation** wherever achievable with HTML/CSS.
@@ -67,9 +67,9 @@ You are a world-class, hyper-specialized AI web development agent. Your sole mis
     This iterative self-correction is NOT optional. It is the CORE of this mission. Failure to adhere to this protocol for every part of the webpage will result in mission failure.
 7.  **Static Output (PRIMARILY):** The generated webpage should be static. Do not include JavaScript unless it is the *ONLY* way to achieve a specific visual effect crucial to the replication.
 8.  **Valid and Clean Code:** Ensure the HTML is well-formed and valid.
-9.  **HTML Only:** Return **ONLY** the HTML code.
+9.  **HTML Only:** Return **ONLY** the HTML code. No introductory text, no explanations, just the code.
 10. **Placeholder Text (STRICTLY LIMITED):** Use placeholder text (e.g., "Lorem ipsum...") ONLY if the text in the image is **UTTERLY ILLEGIBLE AND CANNOT BE REASONABLY INFERRED**.
-11. **FLAWLESS, PIXEL-PERFECT RECONSTRUCTION of ALL EMBEDDED VISUALS & GRAPHICS (CRITICAL):** Any non-textual visual elements, including **ICONS, LOGOS, ILLUSTRATIONS, QR-CODES, PHOTOGRAPHIC DETAILS, COMPLEX SHAPES, CUTOUTS, TRANSPARENCIES, AND INTRICATE GRAPHICAL DETAILS** *within* the original image, **MUST be FLAWLESSLY and PIXEL-PERFECTLY RECONSTRUCTED using ONLY HTML and CSS, or INLINE SVG within the HTML.** This demands advanced CSS (e.g., complex gradients, \\\`clip-path\\\`, \\\`mask-image\\\`, pseudo-elements, filters) and potentially meticulous SVG path data. **YOU CANNOT USE \\\`<img>\\\` TAGS TO EMBED RASTERIZED VERSIONS OF THESE ELEMENTS FROM THE ORIGINAL IMAGE. YOU ABSOLUTELY CANNOT USE THE SOURCE \\\`photoDataUri\\\` (OR ANY BASE64 DATA DERIVED FROM IT) TO DISPLAY THESE ELEMENTS. THEY MUST BE REBUILT. Every graphical nuance must be captured.**
+11. **FLAWLESS, PIXEL-PERFECT RECONSTRUCTION of ALL EMBEDDED VISUALS & GRAPHICS (CRITICAL):** Any non-textual visual elements, including **ICONS, LOGOS, ILLUSTRATIONS, QR-CODES, PHOTOGRAPHIC DETAILS, COMPLEX SHAPES, CUTOUTS, TRANSPARENCIES, AND INTRICATE GRAPHICAL DETAILS** *within* the original image, **MUST be FLAWLESSLY and PIXEL-PERFECTLY RECONSTRUCTED using ONLY HTML and CSS, or INLINE SVG within the HTML.** This demands advanced CSS (e.g., complex gradients, \\\`clip-path\\\`, \\\`mask-image\\\`, pseudo-elements, filters) and potentially meticulous SVG path data. **YOU CANNOT USE \\\`<img>\\\` TAGS TO EMBED RASTERIZED VERSIONS OF THESE ELEMENTS FROM THE ORIGINAL IMAGE. YOU ABSOLUTELY CANNOT USE THE SOURCE \\\`photoDataUri\\\` (OR ANY BASE64 DATA DERIVED FROM IT) TO DISPLAY THESE ELEMENTS. THEY MUST BE REBUILT. Every graphical nuance must be captured. Any use of the source image data in the output is mission failure.**
 12. **Color Accuracy (EXACT VALUES):** Use EXACT hex/RGB/HSL values as extracted or inferred from the image for ALL colors.
 13. **Responsiveness (IF AND ONLY IF IMPLIED):** Pay attention to responsiveness ONLY if the image itself clearly implies a specific responsive layout (e.g., a mobile screenshot vs. a desktop website screenshot). If not specified, aim for a layout that EXACTLY matches the provided image's dimensions and aspect ratio. The primary goal is to CLONE THE *GIVEN* IMAGE, not to arbitrarily make it responsive.
 14. **ABSOLUTE PROHIBITION: NO EMBEDDING OF SOURCE IMAGE DATA (\\\`photoDataUri\\\`) IN CSS \\\`url()\\\` OR ANYWHERE ELSE IN THE OUTPUT:** Crucially, the source image provided via \\\`{{media url=photoDataUri}}\\\` is for YOUR VISUAL REFERENCE ONLY. It **MUST NOT, UNDER ANY CIRCUMSTANCES,** be embedded as a base64 string (or any other format) within CSS \\\`url()\` functions (e.g., as a \\\`background-image\\\` for any element) or used in \\\`<img>\\\` tags. **ANY ATTEMPT TO INCLUDE THE ORIGINAL IMAGE DATA (BASE64 OR OTHERWISE) IN THE OUTPUT HTML/CSS IS A CRITICAL FAILURE.** If a background image is genuinely part of the design and cannot be recreated with CSS, use a SOLID COLOR, a CSS GRADIENT that mimics the original, or, AS A LAST RESORT for complex, unrenderable graphics, a generic placeholder like \\\`https://placehold.co/WIDTHxHEIGHT.png\\\`. The focus is on REPLICATING structure and foreground elements with HTML/CSS, not on re-embedding the source image.
@@ -109,36 +109,36 @@ Image for your meticulous analysis (this is your ONLY visual guide for REPLICATI
           { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
         ]
       },
-      // model: 'googleai/gemini-1.5-pro-latest' // Keep default model for now
+      // model: 'googleai/gemini-1.5-pro-latest' 
     });
 
     let htmlChunkResult = llmResponse.text ?? ""; 
+    
+    // Strip markdown code block delimiters if present
+    const markdownBlockRegex = /^```html\s*([\s\S]*?)\s*```$/;
+    const match = htmlChunkResult.trim().match(markdownBlockRegex);
+    if (match && match[1]) {
+      htmlChunkResult = match[1].trim();
+    }
+    
     let userMarkerFound = false;
 
-    // Check for user-defined marker first
     if (htmlChunkResult.trim().endsWith(marker)) {
         userMarkerFound = true;
-        // Remove the marker from the actual content
         htmlChunkResult = htmlChunkResult.substring(0, htmlChunkResult.lastIndexOf(marker)).trimEnd();
     }
 
-    let isActuallyComplete = true; // Assume complete initially
+    let isActuallyComplete = true; 
 
-    // Check finish reason from the model
     const candidate = llmResponse.candidates?.[0];
     if (candidate?.finishReason === 'MAX_TOKENS') {
-        isActuallyComplete = false; // Model indicates it was cut off
+        isActuallyComplete = false; 
     } else if (userMarkerFound) {
-        // If our marker was found, it means the AI *intended* to signal incompleteness
         isActuallyComplete = false; 
     }
-    // Other finishReasons (like 'STOP', 'SAFETY', 'RECITATION', 'OTHER') are generally treated as complete unless our marker says otherwise.
     
-    // Handle cases where the AI might return a null/undefined chunk but indicates incompleteness
-    // This is more of a safeguard for the action layer.
-    if ((llmResponse.text === null || llmResponse.text === undefined) && !isActuallyComplete) {
-        console.warn("AI returned null/undefined chunk, but indicates incompleteness (e.g. MAX_TOKENS or marker was expected). Action layer will handle loop/error.");
-        // The action layer should decide how to proceed, e.g., retry or error out if no content after several attempts.
+    if ((!htmlChunkResult || htmlChunkResult.trim() === "") && !isActuallyComplete) {
+        console.warn("AI returned empty or null chunk, but indicates incompleteness (e.g. MAX_TOKENS or marker was expected).");
     }
     
     return { htmlChunk: htmlChunkResult, isComplete: isActuallyComplete };
