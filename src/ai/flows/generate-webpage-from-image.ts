@@ -35,6 +35,7 @@ const generateWebpagePrompt = ai.definePrompt({
   name: 'generateWebpagePrompt',
   input: {schema: GenerateWebpageInputSchema},
   output: {schema: GenerateWebpageOutputSchema},
+  model: 'googleai/gemini-1.5-pro-latest', // Explicitly use a model with larger output capabilities
   prompt: `You are an expert web developer AI specializing in converting images into **hyper-realistic, single-file HTML webpages**.
 Your task is to analyze the provided image and generate an **exact 1:1, visually indistinguishable, pixel-perfect clone** of it as a complete HTML document.
 The goal is to produce an HTML/CSS webpage that is **indistinguishable** from the source image down to the **smallest detail**. Every visual element, no matter how small or complex, MUST be replicated with extreme precision.
@@ -56,23 +57,23 @@ Image: {{media url=photoDataUri}}
 12. **Responsiveness (If Implied):** Pay attention to responsiveness if the image implies a specific layout (e.g., a mobile screenshot vs. a desktop website screenshot). If not specified, aim for a layout that exactly matches the provided image's dimensions and aspect ratio. The primary goal is to clone the *given* image, not to make it responsive unless the image itself demonstrates responsive behavior.
 `,
   config: {
-    temperature: 0.1, 
-    safetySettings: [ 
+    temperature: 0.1,
+    safetySettings: [
       {
         category: 'HARM_CATEGORY_HARASSMENT',
-        threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+        threshold: 'BLOCK_ONLY_HIGH',
       },
       {
         category: 'HARM_CATEGORY_HATE_SPEECH',
-        threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+        threshold: 'BLOCK_ONLY_HIGH',
       },
       {
         category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-        threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+        threshold: 'BLOCK_ONLY_HIGH',
       },
       {
         category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-        threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+        threshold: 'BLOCK_ONLY_HIGH',
       },
     ]
   }
@@ -93,6 +94,3 @@ const generateWebpageFlow = ai.defineFlow(
     return output;
   }
 );
-
-
-    
