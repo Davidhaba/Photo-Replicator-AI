@@ -24,7 +24,7 @@ export type GenerateWebpageInput = z.infer<typeof GenerateWebpageInputSchema>;
 const GenerateWebpageOutputSchema = z.object({
   htmlChunk: z
     .string()
-    .optional()
+    .optional() // Made optional to handle cases where AI might return null
     .describe('A chunk of the HTML/CSS code for the webpage.'),
   isComplete: z.boolean().describe("True if the generation is complete, false if more content is expected to follow."),
 });
@@ -33,9 +33,6 @@ export type GenerateWebpageOutput = z.infer<typeof GenerateWebpageOutputSchema>;
 export async function generateWebpageFromImage(input: GenerateWebpageInput): Promise<GenerateWebpageOutput> {
   return generateWebpageFlow(input);
 }
-
-// Note: We are not using ai.definePrompt here because the prompt text needs to be dynamically constructed
-// based on whether it's an initial request or a continuation. We will use ai.generate directly.
 
 const generateWebpageFlow = ai.defineFlow(
   {
@@ -51,17 +48,17 @@ const generateWebpageFlow = ai.defineFlow(
 **Critical Instructions for Uncompromising Visual Fidelity AND Completeness:**
 1.  **Output Format:** The output MUST be a single string containing a complete HTML document, including \`<html>\`, \`<head>\`, and \`<body>\` tags.
 2.  **Embedded CSS Only:** ALL CSS styles required to achieve this **perfect visual replica** (layout, colors, fonts, spacing, borders, shadows, gradients, **all graphical elements, intricate patterns, and textual content**) MUST be included directly within THE HTML. Use \`<style>\` tags in the \`<head>\` or inline styles. **Absolutely NO external CSS files.**
-3.  **Uncompromising Meticulous Detail Replication:** You must achieve **pixel-perfect accuracy**. Pay **obsessive, forensic-level attention** to the precise positioning (x, y coordinates), dimensions (width, height, to the exact pixel), colors (extract or infer exact hex/RGB/HSL values), font styles (if identifiable, use the exact font; otherwise, find the closest web-safe match that replicates the visual character, weight, size, letter spacing, line height), spacing (margins, padding), borders (thickness, style, color, radius), shadows (offset, blur, color, spread), gradients (type, direction, color stops), and **every single visual attribute** present in the image. **Absolutely NO detail is too small to be ignored, simplified, or approximated. If a visual effect exists in the image, it MUST be replicated in the HTML/CSS.**
+3.  **Uncompromising Meticulous Detail Replication:** Your ultimate goal is a **pixel-for-pixel, visually indistinguishable clone**. Achieve **perfect visual accuracy**. Pay **obsessive, forensic-level attention** to the precise positioning (x, y coordinates), dimensions (width, height, to the exact pixel), colors (extract or infer exact hex/RGB/HSL values), font styles (if identifiable, use the exact font; otherwise, find the closest web-safe match that replicates the visual character, weight, size, letter spacing, line height), spacing (margins, padding), borders (thickness, style, color, radius), shadows (offset, blur, color, spread), gradients (type, direction, color stops), and **every single visual attribute** present in the image. **Absolutely NO detail is too small to be ignored. DO NOT simplify, approximate, or omit any visual element or attribute for brevity or any other reason if it compromises the pixel-perfect visual fidelity to the original image. If a visual effect exists in the image, it MUST be replicated in the HTML/CSS.**
 4.  **Text Replication:** If the image contains text, replicate it with **absolute precision** regarding font family, size, weight, color, alignment, and placement. If an exact font match is impossible, choose the closest common web-safe alternative that preserves the visual character.
 5.  **Structural and Visual Integrity:** Recreate the structural layout, color palette, and ALL key visual elements from the image with the **highest possible fidelity**. Imagine you are creating a perfect digital forgery of the image using only HTML and CSS. The output must be a **pixel-for-pixel representation** wherever achievable with HTML/CSS.
 6.  **Static Output (Primarily):** The generated webpage should be static. Do not include JavaScript unless it is the *only* way to achieve a specific visual effect crucial to the replication.
 7.  **Valid and Clean Code:** Ensure the HTML is well-formed and valid.
 8.  **HTML Only:** Return **ONLY** the HTML code.
 9.  **Placeholder Text (Strictly Limited):** Use placeholder text (e.g., "Lorem ipsum...") ONLY if the text in the image is **utterly illegible**.
-10. **Flawless Replication of ALL Embedded Visuals & Graphics:** Any non-textual visual elements, including icons, logos, illustrations, patterns, complex shapes, cutouts, transparencies, and intricate graphical details *within* the original image, **MUST be flawlessly recreated using only HTML and CSS.** This demands advanced CSS (SVG-in-HTML, complex gradients, \\\`clip-path\\\`, \\\`mask-image\\\`, pseudo-elements, filters). **You CANNOT use \\\`<img>\\\` tags for these elements OR use the source \\\`photoDataUri\\\`**.
-11. **Color Accuracy:** Use exact hex/RGB/HSL values.
-12. **Responsiveness (If Implied):** Match the image's layout.
-13. **NO EMBEDDING of Source Image Data in CSS \\\`url()\\\`.** Use solid colors, CSS gradients, or \\\`https://placehold.co/WIDTHxHEIGHT.png\\\`.
+10. **Flawless, Pixel-Perfect Replication of ALL Embedded Visuals & Graphics:** Any non-textual visual elements, including icons, logos, illustrations, patterns, complex shapes, cutouts, transparencies, and intricate graphical details *within* the original image, **MUST be flawlessly and pixel-perfectly recreated using only HTML and CSS.** This demands advanced CSS (SVG-in-HTML, complex gradients, \\\`clip-path\\\`, \\\`mask-image\\\`, pseudo-elements, filters). **You CANNOT use \\\`<img>\\\` tags for these elements OR use the source \\\`photoDataUri\\\`. Every graphical nuance must be captured.**
+11. **Color Accuracy:** Use exact hex/RGB/HSL values as extracted or inferred from the image for all colors.
+12. **Responsiveness (If Implied):** Pay attention to responsiveness if the image implies a specific layout (e.g., a mobile screenshot vs. a desktop website screenshot). If not specified, aim for a layout that exactly matches the provided image's dimensions and aspect ratio. The primary goal is to clone the *given* image, not to make it responsive unless the image itself demonstrates responsive behavior.
+13. **NO EMBEDDING of Source Image Data in CSS \\\`url()\\\`:** Crucially, the source image provided via \\\`{{media url=photoDataUri}}\\\` MUST NOT be embedded as a base64 string (or any other format) within CSS \\\`url()\\\` functions, for example, as a \\\`background-image\\\`. If a background image is needed to replicate the original, use a solid color, a CSS gradient that mimics the original, or a generic placeholder like \\\`https://placehold.co/WIDTHxHEIGHT.png\\\`. The focus is on replicating structure and foreground elements with HTML/CSS, not on re-embedding the entire source image as a background.
 14. **Continuation Marker:** If the full HTML/CSS is too long for this single response, generate as much as you can and end your response *exactly* with the marker: \`${marker}\`. Do not include this marker if the content you are generating completes the webpage. If you include the marker, ensure the generated HTML chunk is valid up to that point.
 `;
 
@@ -89,6 +86,7 @@ Image for reference:`});
     
     const llmResponse = await ai.generate({
       prompt: promptSegments,
+      // model: 'googleai/gemini-1.5-pro-latest', // Using default model from ai.ts now
       config: {
         temperature: 0.1, 
         safetySettings: [ 
@@ -108,7 +106,8 @@ Image for reference:`});
       if (input.previousContent) {
           // If continuing and get null, it's likely an issue.
           console.error("AI returned null/undefined during continuation.");
-          return { htmlChunk: "", isComplete: false }; // Signal an issue, let action layer decide.
+          // Let's try to signal it as not complete to allow the action to potentially retry or error out gracefully.
+          return { htmlChunk: "", isComplete: false }; 
       }
       // For initial request, if null, means no content.
       return { htmlChunk: "", isComplete: true };
