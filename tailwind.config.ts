@@ -5,7 +5,7 @@ export default {
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    'src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     container: {
@@ -20,7 +20,7 @@ export default {
         sans: ["var(--font-sans)", "sans-serif"],
         body: ['Alegreya', 'serif'],
         headline: ['Belleza', 'sans-serif'],
-        code: ['monospace'],
+        code: ['Menlo', 'Monaco', 'Consolas', "Liberation Mono", "Courier New", 'monospace'], // Added more fallback monospace fonts
       },
       colors: {
         border: "hsl(var(--border))",
@@ -66,7 +66,7 @@ export default {
           border: 'hsl(var(--sidebar-border))',
           ring: 'hsl(var(--sidebar-ring))',
         },
-        chart: { // Ensure chart colors are defined
+        chart: { 
           '1': 'hsl(var(--chart-1))',
           '2': 'hsl(var(--chart-2))',
           '3': 'hsl(var(--chart-3))',
@@ -105,5 +105,3 @@ export default {
   },
   plugins: [require('tailwindcss-animate')],
 } satisfies Config;
-
-    

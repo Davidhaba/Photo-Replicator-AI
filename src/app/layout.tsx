@@ -1,4 +1,4 @@
-import type {Metadata} from 'next';
+import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { Inter as FontSans } from "next/font/google"
@@ -10,8 +10,8 @@ const fontSans = FontSans({
 })
 
 export const metadata: Metadata = {
-  title: 'Pixel Perfect - AI Image to Webpage',
-  description: 'Transform your image designs into HTML & CSS code with AI.',
+  title: 'Photo Replicator - AI Image to Code',
+  description: 'AI-powered tool to transform your images into HTML & CSS code.',
 };
 
 export default function RootLayout({
@@ -24,12 +24,12 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Belleza&family=Alegreya:ital,wght@0,400..900;1,400..900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Belleza&family=Alegreya:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet" />
       </head>
       <body 
         className={cn(
-          "min-h-screen bg-background font-sans antialiased",
-          fontSans.variable
+          "min-h-screen bg-background font-body antialiased", // Changed default font to Alegreya (body)
+          fontSans.variable // Inter is still available via --font-sans if needed explicitly
         )}
       >
         {children}
@@ -38,5 +38,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-    

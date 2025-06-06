@@ -1,10 +1,11 @@
+
 'use client';
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useId } from 'react';
 import { UploadCloud, FileWarning } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast'; // Assuming useToast is in hooks
+import { useToast } from '@/components/ui/use-toast'; // Corrected path
 
 interface ImageUploadProps {
   onImageSelect: (event: React.ChangeEvent<HTMLInputElement>) => void;
@@ -14,7 +15,7 @@ interface ImageUploadProps {
 
 export const ImageUpload = forwardRef<HTMLInputElement, ImageUploadProps>(
   ({ onImageSelect, disabled, inputId: customInputId }, ref) => {
-    const defaultInputId = React.useId();
+    const defaultInputId = useId();
     const inputId = customInputId || defaultInputId;
     const { toast } = useToast();
 
@@ -48,12 +49,12 @@ export const ImageUpload = forwardRef<HTMLInputElement, ImageUploadProps>(
     };
 
     return (
-      <div className="w-full flex flex-col items-center gap-4 p-6 md:p-8 border-2 border-dashed border-purple-600/70 rounded-xl hover:border-purple-500 transition-colors duration-300 bg-slate-700/30 shadow-md hover:shadow-purple-500/20">
-        <UploadCloud className="w-16 h-16 md:w-20 md:h-20 text-purple-400" />
+      <div className="w-full flex flex-col items-center gap-4 p-6 md:p-8 border-2 border-dashed border-primary/50 rounded-xl hover:border-primary transition-colors duration-300 bg-card shadow-lg hover:shadow-primary/20">
+        <UploadCloud className="w-16 h-16 md:w-20 md:h-20 text-primary" />
         <Label htmlFor={inputId} className="text-center font-body cursor-pointer">
-          <span className="font-semibold text-purple-300 text-xl block">Click or Drag & Drop</span>
-          <p className="text-sm text-purple-400/80 mt-1">
-            Supports PNG, JPG, WEBP, GIF (Max {5}MB)
+          <span className="font-semibold text-primary text-xl block">Click or Drag & Drop</span>
+          <p className="text-sm text-muted-foreground mt-1">
+            Supports PNG, JPG, WEBP, GIF (Max 5MB)
           </p>
         </Label>
         <Input
@@ -69,8 +70,8 @@ export const ImageUpload = forwardRef<HTMLInputElement, ImageUploadProps>(
         <Button
           onClick={() => document.getElementById(inputId)?.click()}
           disabled={disabled}
-          variant="outline"
-          className="font-body text-base bg-purple-600/80 hover:bg-purple-500 border-purple-500 text-white hover:text-white py-2 px-6 rounded-lg transition-all"
+          variant="default"
+          className="font-body text-base py-2 px-6 rounded-lg transition-all"
           aria-label="Select image from your device"
         >
           <UploadCloud className="mr-2 h-5 w-5" />
@@ -82,5 +83,3 @@ export const ImageUpload = forwardRef<HTMLInputElement, ImageUploadProps>(
 );
 
 ImageUpload.displayName = 'ImageUpload';
-
-    
