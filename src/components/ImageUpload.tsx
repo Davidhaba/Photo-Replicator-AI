@@ -105,45 +105,48 @@ export const ImageUpload = forwardRef<HTMLInputElement, ImageUploadProps>(
             "w-full p-6 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all duration-300 ease-in-out group",
             disabled ? "bg-muted/50 cursor-not-allowed opacity-60" : "hover:border-primary/80 hover:bg-primary/5",
             dragOver ? "border-primary bg-primary/10 ring-2 ring-primary ring-offset-2" : "border-border",
-            currentImage ? "h-auto aspect-video relative" : "min-h-[200px] md:min-h-[250px]"
+            currentImage ? "min-h-[200px] md:min-h-[300px] aspect-auto" : "min-h-[200px] md:min-h-[250px]"
           )}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
+          onClick={() => !disabled && triggerFileInput()} // Make the whole label clickable
         >
           {currentImage ? (
-            <>
+            <div className="relative w-full h-full max-h-[400px] flex items-center justify-center">
               <NextImage 
                 src={currentImage} 
                 alt="Uploaded preview" 
-                layout="fill" 
+                layout="intrinsic" // Use intrinsic to maintain aspect ratio within the container
+                width={500} // Provide a base width, Next.js will optimize
+                height={300} // Provide a base height
                 objectFit="contain" 
                 className="rounded-md" 
               />
               {!disabled && onClearImage && (
                 <Button
                   type="button"
-                  variant="destructive"
+                  variant="ghost"
                   size="icon"
-                  className="absolute top-2 right-2 h-8 w-8 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-2 right-2 h-8 w-8 rounded-full bg-black/50 hover:bg-black/70 text-white opacity-75 group-hover:opacity-100 transition-opacity z-10"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation(); // Prevent label click from re-opening file dialog
-                    onClearImage();
+                    if (onClearImage) onClearImage();
                     if (ref && typeof ref === 'object' && ref.current) {
                         ref.current.value = "";
                     }
                   }}
                   aria-label="Remove image"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-5 w-5" />
                 </Button>
               )}
-            </>
+            </div>
           ) : (
-            <div className="text-center">
+            <div className="text-center pointer-events-none"> {/* Prevent text selection during drag */}
               <UploadCloud className={cn(
-                "w-16 h-16 md:w-20 md:h-20 mx-auto", 
+                "w-16 h-16 md:w-20 md:h-20 mx-auto mb-4", 
                 dragOver ? "text-primary" : "text-muted-foreground group-hover:text-primary/80 transition-colors"
               )} />
               <p className="mt-3 text-lg font-semibold text-foreground">
@@ -167,19 +170,6 @@ export const ImageUpload = forwardRef<HTMLInputElement, ImageUploadProps>(
           disabled={disabled}
           ref={ref}
         />
-         {!currentImage && (
-          <Button
-            type="button"
-            onClick={triggerFileInput}
-            disabled={disabled}
-            variant="outline"
-            className="font-body text-base py-2 px-6 rounded-lg transition-all border-primary/70 text-primary hover:bg-primary/10 hover:border-primary"
-            aria-label="Select image from your device"
-          >
-            <ImageIcon className="mr-2 h-5 w-5" />
-            Select Image
-          </Button>
-        )}
       </div>
     );
   }
