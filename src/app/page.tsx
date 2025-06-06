@@ -1,12 +1,13 @@
+
 'use client';
 
 import React, { useState, useRef } from 'react';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/components/ui/input"; // Corrected import
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, AlertCircle, ImageOff, Monitor, Code, UploadCloud, Wand2 } from 'lucide-react';
+import { Loader2, AlertCircle, ImageOff, Monitor, Code, UploadCloud, Wand2, ClipboardCopy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { generateWebpageAction, type GenerateWebpageResult } from '@/app/actions';
 import { ImageUpload } from '@/components/ImageUpload';
@@ -17,16 +18,16 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'preview' | 'code'>('preview');
+  const [isCopied, setIsCopied] = useState<boolean>(false);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageSelected = (imageDataUri: string | null) => {
     if (imageDataUri) {
       setUploadedImage(imageDataUri);
-      setGeneratedCode(null); // Clear previous code
-      setError(null); // Clear previous error
-      // Automatically submit if you want, or wait for a button click
-      // handleSubmit(imageDataUri); 
+      setGeneratedCode(null);
+      setError(null);
+      setActiveTab('preview'); // Switch to preview tab when a new image is uploaded
     } else {
       setUploadedImage(null);
       setGeneratedCode(null);
@@ -52,7 +53,6 @@ export default function HomePage() {
       const result: GenerateWebpageResult = await generateWebpageAction(uploadedImage);
       
       let finalCode = result.generatedCode;
-      // Remove Markdown code block delimiters if present
       if (finalCode) {
         const markdownBlockRegex = /^```html\s*([\s\S]*?)\s*```$/;
         const match = finalCode.trim().match(markdownBlockRegex);
@@ -70,6 +70,7 @@ export default function HomePage() {
         });
       } else if (finalCode) {
         setGeneratedCode(finalCode);
+        setActiveTab('preview'); // Show preview first
         toast({
           title: "Success!",
           description: "Webpage code generated. Check the preview and code tabs.",
@@ -101,8 +102,28 @@ export default function HomePage() {
     setGeneratedCode(null);
     setActiveTab('preview');
     if (fileInputRef.current) {
-      // This relies on ImageUpload component exposing its ref or a reset method
-      // For simplicity, if direct ref manipulation is complex, user can re-select
+      fileInputRef.current.value = ""; // Clear the file input
+    }
+  };
+
+  const handleCopyCode = async () => {
+    if (generatedCode) {
+      try {
+        await navigator.clipboard.writeText(generatedCode);
+        setIsCopied(true);
+        toast({
+          title: "Copied!",
+          description: "HTML code copied to clipboard.",
+        });
+        setTimeout(() => setIsCopied(false), 2000); // Reset after 2 seconds
+      } catch (err) {
+        console.error('Failed to copy text: ', err);
+        toast({
+          variant: "destructive",
+          title: "Copy Failed",
+          description: "Could not copy code to clipboard.",
+        });
+      }
     }
   };
 
@@ -122,7 +143,6 @@ export default function HomePage() {
 
       <main className="flex-1 container mx-auto px-4 py-8 md:px-6 md:py-12">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-          {/* Left Column: Image Upload and Original Image Preview */}
           <div className="flex flex-col gap-6">
             <Card className="bg-slate-800/70 border-purple-700/50 shadow-xl">
               <CardHeader>
@@ -185,7 +205,6 @@ export default function HomePage() {
             </Card>
           </div>
 
-          {/* Right Column: Generated Code/Preview */}
           <div className="flex flex-col gap-6">
             <Card className="bg-slate-800/70 border-purple-700/50 shadow-xl h-full flex flex-col min-h-[500px] lg:min-h-[calc(100vh-15rem)]">
               <CardHeader>
@@ -194,14 +213,14 @@ export default function HomePage() {
                   <Button
                     variant={activeTab === 'preview' ? 'secondary' : 'ghost'}
                     onClick={() => setActiveTab('preview')}
-                    className={`flex-1 py-3 rounded-none border-b-2 ${activeTab === 'preview' ? 'border-pink-500 text-pink-400 bg-slate-700/50' : 'border-transparent text-purple-300 hover:bg-slate-700/30 hover:text-purple-200'}`}
+                    className={`flex-1 py-3 rounded-none border-b-2 ${activeTab === 'preview' ? 'border-pink-500 text-pink-400 bg-slate-700/50 font-semibold' : 'border-transparent text-purple-300 hover:bg-slate-700/30 hover:text-purple-200'}`}
                   >
                     <Monitor className="mr-2 h-5 w-5" /> Preview
                   </Button>
                   <Button
                     variant={activeTab === 'code' ? 'secondary' : 'ghost'}
                     onClick={() => setActiveTab('code')}
-                    className={`flex-1 py-3 rounded-none border-b-2 ${activeTab === 'code' ? 'border-pink-500 text-pink-400 bg-slate-700/50' : 'border-transparent text-purple-300 hover:bg-slate-700/30 hover:text-purple-200'}`}
+                    className={`flex-1 py-3 rounded-none border-b-2 ${activeTab === 'code' ? 'border-pink-500 text-pink-400 bg-slate-700/50 font-semibold' : 'border-transparent text-purple-300 hover:bg-slate-700/30 hover:text-purple-200'}`}
                   >
                     <Code className="mr-2 h-5 w-5" /> HTML Code
                   </Button>
@@ -243,10 +262,24 @@ export default function HomePage() {
                         />
                       </div>
                     ) : (
-                      <div className="flex-grow overflow-auto bg-gray-950 p-4 rounded-b-lg">
-                        <pre className="text-sm text-gray-300 whitespace-pre-wrap break-all">
-                          <code>{generatedCode}</code>
-                        </pre>
+                      <div className="flex-grow flex flex-col overflow-hidden bg-gray-950 rounded-b-lg">
+                        <div className="p-4 flex justify-end border-b border-purple-700/30">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleCopyCode}
+                            disabled={!generatedCode || isLoading}
+                            className="bg-slate-700 hover:bg-slate-600 border-purple-500 text-purple-300 hover:text-purple-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <ClipboardCopy className="mr-2 h-4 w-4" />
+                            {isCopied ? 'Copied!' : 'Copy Code'}
+                          </Button>
+                        </div>
+                        <div className="flex-grow overflow-auto p-4">
+                          <pre className="text-sm text-gray-300 whitespace-pre-wrap break-all font-code">
+                            <code>{generatedCode}</code>
+                          </pre>
+                        </div>
                       </div>
                     )}
                   </>
