@@ -17,10 +17,10 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["var(--font-sans)", "sans-serif"],
+        sans: ["var(--font-sans)", "sans-serif"], // Default sans-serif, can be overridden by Alegreya for body
         body: ['Alegreya', 'serif'],
         headline: ['Belleza', 'sans-serif'],
-        code: ['Menlo', 'Monaco', 'Consolas', "Liberation Mono", "Courier New", 'monospace'], // Added more fallback monospace fonts
+        code: ['Menlo', 'Monaco', 'Consolas', "Liberation Mono", "Courier New", 'monospace'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -66,7 +66,7 @@ export default {
           border: 'hsl(var(--sidebar-border))',
           ring: 'hsl(var(--sidebar-ring))',
         },
-        chart: { 
+        chart: {
           '1': 'hsl(var(--chart-1))',
           '2': 'hsl(var(--chart-2))',
           '3': 'hsl(var(--chart-3))',
@@ -96,10 +96,20 @@ export default {
             height: '0',
           },
         },
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        slideInFromBottom: {
+          '0%': { transform: 'translateY(20px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        }
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        'fade-in': 'fadeIn 0.5s ease-out',
+        'slide-in-bottom': 'slideInFromBottom 0.5s ease-out forwards',
       },
     },
   },

@@ -3,26 +3,24 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-// Textarea is not used in the current design but kept if needed later
-// import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, UploadCloud, Copy, AlertTriangle, Image as ImageIcon, Sparkles, Code } from 'lucide-react';
-import { useToast } from "@/hooks/use-toast"; // Corrected path
+import { Loader2, UploadCloud, Copy, AlertTriangle, Image as ImageIcon, Sparkles, Code, MonitorSmartphone, Eye } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
 import NextImage from 'next/image';
-import { generateWebpageAction } from './actions'; // Ensure this path is correct
+import { generateWebpageAction } from './actions';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ImageUpload } from '@/components/ImageUpload';
-import { ImageDisplayCard } from '@/components/ImageDisplayCard';
+import { ImageUpload } from '@/components/ImageUpload'; // Assuming this component is styled appropriately
+import { ImageDisplayCard } from '@/components/ImageDisplayCard'; // Assuming this component is styled appropriately
+import { Separator } from '@/components/ui/separator';
 
 export default function HomePage() {
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isGenerationComplete, setIsGenerationComplete] = useState<boolean>(true); // Assume complete initially
+  const [isGenerationComplete, setIsGenerationComplete] = useState<boolean>(true);
+  const [progressMessage, setProgressMessage] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -32,9 +30,10 @@ export default function HomePage() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setOriginalImage(reader.result as string);
-        setGeneratedCode(null); // Reset generated code
-        setError(null); // Clear previous errors
-        setIsGenerationComplete(true); // Reset completion status
+        setGeneratedCode(null);
+        setError(null);
+        setIsGenerationComplete(true);
+        setProgressMessage("");
       };
       reader.readAsDataURL(file);
     }
@@ -45,8 +44,9 @@ export default function HomePage() {
     setGeneratedCode(null);
     setError(null);
     setIsGenerationComplete(true);
+    setProgressMessage("");
     if (fileInputRef.current) {
-      fileInputRef.current.value = ""; // Reset the file input
+      fileInputRef.current.value = "";
     }
   };
 
@@ -54,25 +54,26 @@ export default function HomePage() {
     if (!originalImage) {
       toast({
         title: "No Image Selected",
-        description: "Please upload an image first.",
+        description: "Please upload an image first to transform it into code.",
         variant: "destructive",
       });
       return;
     }
     setIsLoading(true);
     setError(null);
-    setGeneratedCode(""); // Initialize with empty string for accumulation
+    setGeneratedCode(""); 
     setIsGenerationComplete(false);
+    setProgressMessage("Analyzing image and preparing generation...");
 
     let accumulatedCode = "";
     let complete = false;
     let attempts = 0;
-    const maxAttempts = 5; // Max chunks to fetch
+    const maxAttempts = 5; 
 
     while (attempts < maxAttempts && !complete) {
       attempts++;
+      setProgressMessage(`Generating code chunk ${attempts}/${maxAttempts}...`);
       try {
-        // Pass the accumulated code as previousContent for subsequent requests
         const result = await generateWebpageAction(originalImage, attempts > 1 ? accumulatedCode : undefined);
         
         if (result.error) {
@@ -82,11 +83,12 @@ export default function HomePage() {
             description: result.error,
             variant: "destructive",
           });
-          if (result.generatedCode) { // Append partial code if available even on error
+          if (result.generatedCode) {
              accumulatedCode += result.generatedCode;
              setGeneratedCode(accumulatedCode);
           }
-          setIsGenerationComplete(true); // Stop trying if error
+          setIsGenerationComplete(true);
+          setProgressMessage("Generation failed.");
           break; 
         }
 
@@ -100,27 +102,28 @@ export default function HomePage() {
 
         if (!complete && result.generatedCode) {
           toast({
-            title: "Generating...",
-            description: `Chunk ${attempts} of ${maxAttempts} received. More content is expected.`,
+            title: "Processing...",
+            description: `Chunk ${attempts} received. Continuing generation.`,
             duration: 3000,
           });
         } else if (!complete && !result.generatedCode && attempts > 1) {
-          // If no code chunk but still not complete (and not the first attempt), might be an issue.
            console.warn("AI returned no new content during continuation but indicated it's not complete.");
-           // Consider it complete to avoid potential infinite loops if AI misbehaves with marker
-           complete = true;
+           complete = true; // Assume completion to avoid infinite loop
            setIsGenerationComplete(true);
+           setProgressMessage("Generation finished with potential truncation.");
         }
 
       } catch (e: any) {
         console.error("Error during generation loop:", e);
-        setError(e.message || "An unexpected error occurred during page generation.");
+        const errorMessage = e.message || "An unexpected error occurred during page generation.";
+        setError(errorMessage);
         toast({
           title: "Critical Error",
-          description: e.message || "An unexpected error occurred.",
+          description: errorMessage,
           variant: "destructive",
         });
-        setIsGenerationComplete(true); // Stop trying on critical error
+        setIsGenerationComplete(true);
+        setProgressMessage("Generation critically failed.");
         break;
       }
     }
@@ -131,19 +134,23 @@ export default function HomePage() {
           description: "Reached maximum generation attempts. The content might be truncated.",
           variant: "default", 
         });
+        setProgressMessage("Max attempts reached. Content may be partial.");
     } else if (complete && accumulatedCode) {
          toast({
           title: "Success!",
-          description: "Webpage code generated.",
+          description: "Webpage code generated successfully.",
+          variant: "default",
+          className: "bg-green-500 text-white"
         });
+        setProgressMessage("Generation Complete!");
     } else if (!accumulatedCode && !error) {
-        // This case handles if no code was generated at all after all attempts
-        setError("AI did not generate any code. Please try a different image or check API status.");
+        setError("AI did not generate any code. Please try a different image or check AI service status.");
         toast({
           title: "No Code Generated",
           description: "The AI did not produce any code for this image.",
           variant: "destructive",
         });
+        setProgressMessage("No code generated.");
     }
 
     setIsLoading(false);
@@ -153,7 +160,7 @@ export default function HomePage() {
     if (generatedCode) {
       navigator.clipboard.writeText(generatedCode)
         .then(() => {
-          toast({ title: "Copied!", description: "HTML code copied to clipboard." });
+          toast({ title: "Copied!", description: "HTML code copied to clipboard.", className: "bg-green-500 text-white" });
         })
         .catch(err => {
           toast({ title: "Copy Error", description: "Failed to copy code.", variant: "destructive" });
@@ -164,27 +171,27 @@ export default function HomePage() {
   
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/50 text-foreground flex flex-col items-center p-4 sm:p-6 md:p-8">
-      <header className="w-full max-w-5xl mb-8 md:mb-12 text-center">
-        <h1 className="text-4xl sm:text-5xl md:text-6xl font-headline font-bold text-primary mb-3 tracking-tight">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/30 text-foreground flex flex-col items-center p-4 sm:p-6 md:p-8 transition-all duration-500 ease-in-out">
+      <header className="w-full max-w-5xl mb-8 md:mb-12 text-center py-8">
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-headline font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent mb-4">
           PhotoReplicator AI
         </h1>
         <p className="text-lg md:text-xl text-muted-foreground font-body max-w-2xl mx-auto">
-          Magically transform your images and mockups into HTML & CSS code with the power of AI.
+          Unleash the power of AI to transform your UI mockups and images into clean, functional HTML & CSS code in seconds.
         </p>
       </header>
 
-      <main className="w-full max-w-5xl flex flex-col items-center gap-8">
-        <Card className="w-full shadow-2xl bg-card/90 backdrop-blur-sm">
-          <CardHeader>
+      <main className="w-full max-w-6xl flex flex-col items-center gap-8">
+        <Card className="w-full shadow-xl bg-card/80 backdrop-blur-md border border-border/50 rounded-xl overflow-hidden">
+          <CardHeader className="pb-4">
             <CardTitle className="text-2xl md:text-3xl font-headline text-primary flex items-center">
-              <UploadCloud className="mr-3 h-7 w-7" /> Upload Your Design
+              <UploadCloud className="mr-3 h-8 w-8 text-primary" /> Upload Your Design
             </CardTitle>
-            <CardDescription className="font-body text-base">
-              Select an image file (PNG, JPG, WEBP) of your UI design or mockup. Clear and well-structured images work best. Max 5MB.
+            <CardDescription className="font-body text-base text-muted-foreground">
+              Select an image file (PNG, JPG, WEBP) of your UI design or mockup. Clear, well-structured images yield the best results. Max 5MB.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col items-center gap-6">
+          <CardContent className="flex flex-col items-center gap-6 p-6">
             <ImageUpload 
               onImageSelect={handleImageUpload} 
               disabled={isLoading} 
@@ -196,12 +203,12 @@ export default function HomePage() {
               onClick={handleGenerateClick}
               disabled={!originalImage || isLoading}
               size="lg"
-              className="w-full md:w-auto bg-gradient-to-r from-primary to-accent text-primary-foreground font-body py-3 px-8 text-lg rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+              className="w-full md:w-auto bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground font-semibold py-3 px-10 text-lg rounded-lg shadow-lg hover:shadow-xl transform transition-all duration-300 ease-in-out hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Generating Magic...
+                  <span>{progressMessage || "Generating..."}</span>
                 </>
               ) : (
                 <>
@@ -210,11 +217,20 @@ export default function HomePage() {
                 </>
               )}
             </Button>
+             {isLoading && (
+                <div className="w-full max-w-md mt-2">
+                    <div className="relative pt-1">
+                        <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-primary/20">
+                            <div style={{ width: `${(attempts / maxAttempts) * 100}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-primary transition-all duration-500"></div>
+                        </div>
+                    </div>
+                </div>
+            )}
           </CardContent>
         </Card>
 
         {error && (
-          <Card className="w-full bg-destructive/10 border-destructive text-destructive-foreground shadow-md">
+          <Card className="w-full bg-destructive/10 border-destructive text-destructive-foreground shadow-md animate-fadeIn">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-destructive">
                 <AlertTriangle className="h-6 w-6" />
@@ -223,7 +239,7 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               <p className="font-body">{error}</p>
-               {generatedCode && (
+               {generatedCode && ( // Show partial code if error occurred mid-generation
                  <div className="mt-4">
                     <p className="text-sm font-medium mb-2">Partially generated code (if any):</p>
                     <ScrollArea className="h-[150px] w-full rounded-md border bg-muted/20 p-2">
@@ -236,53 +252,55 @@ export default function HomePage() {
         )}
 
         {(generatedCode || (isLoading && originalImage)) && !error && (
-          <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
-            <ImageDisplayCard 
-              title="Original Image" 
-              imageUrl={originalImage} 
-              altText="Original Uploaded Image" 
-              isLoading={isLoading && !originalImage} // Only show skeleton if loading AND no image yet
+          <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 animate-fadeIn">
+            <ImageDisplayCard
+              title="Original Image"
+              imageUrl={originalImage}
+              altText="Original Uploaded Design"
+              isLoading={isLoading && !originalImage}
+              className="bg-card/80 backdrop-blur-md border border-border/50 rounded-xl"
             />
 
-            <Card className="shadow-xl bg-card text-card-foreground">
-              <CardHeader>
+            <Card className="shadow-xl bg-card/80 backdrop-blur-md border border-border/50 rounded-xl">
+              <CardHeader className="pb-4">
                 <CardTitle className="text-2xl font-headline text-primary flex items-center">
-                  <Code className="mr-3 h-7 w-7" /> AI Recreation
+                  <MonitorSmartphone className="mr-3 h-7 w-7" /> AI Generated Output
                 </CardTitle>
+                 <CardDescription className="font-body text-base text-muted-foreground">
+                  Preview the generated webpage or view the HTML code.
+                </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-6 pt-0">
                 <Tabs defaultValue="preview" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 mb-4 bg-muted/50">
-                    <TabsTrigger value="preview" className="font-body data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md">Preview</TabsTrigger>
-                    <TabsTrigger value="code" className="font-body data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md">HTML Code</TabsTrigger>
+                  <TabsList className="grid w-full grid-cols-2 mb-4 bg-muted/30 rounded-lg">
+                    <TabsTrigger value="preview" className="font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md rounded-md py-2">
+                        <Eye className="mr-2 h-4 w-4"/> Preview
+                    </TabsTrigger>
+                    <TabsTrigger value="code" className="font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md rounded-md py-2">
+                        <Code className="mr-2 h-4 w-4"/> HTML Code
+                    </TabsTrigger>
                   </TabsList>
                   <TabsContent value="preview">
-                    <div className="aspect-video w-full relative bg-muted/30 rounded-md overflow-hidden border border-border shadow-inner">
+                    <div className="aspect-video w-full relative bg-muted/20 rounded-lg overflow-hidden border border-border shadow-inner">
                       {isLoading && !generatedCode && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/80 backdrop-blur-sm z-10">
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/90 backdrop-blur-sm z-10">
                           <Loader2 className="h-12 w-12 animate-spin text-primary" />
                           <p className="mt-4 text-muted-foreground font-body">Crafting your webpage...</p>
                         </div>
                       )}
-                      {generatedCode && (
+                      {generatedCode ? (
                         <iframe
                           srcDoc={generatedCode}
                           title="Generated Webpage Preview"
                           className="w-full h-full border-0"
-                          sandbox="allow-scripts allow-same-origin" // allow-same-origin might be needed if CSS uses external resources, but be cautious.
+                          sandbox="allow-scripts allow-same-origin"
                         />
-                      )}
-                       {!isLoading && !generatedCode && !originalImage && (
-                        <div className="flex flex-col items-center justify-center h-full text-muted-foreground font-body p-4 text-center">
-                          <ImageIcon className="w-12 h-12 mb-2 text-muted-foreground/70" />
-                          <p>Upload an image and click "Generate Code".</p>
-                        </div>
-                      )}
-                       {!isLoading && !generatedCode && originalImage && (
+                      ) : (
+                       !isLoading && (
                         <div className="flex flex-col items-center justify-center h-full text-muted-foreground font-body p-4 text-center">
                           <ImageIcon className="w-12 h-12 mb-2 text-muted-foreground/70" />
                           <p>Preview will appear here after generation.</p>
-                        </div>
+                        </div>)
                       )}
                     </div>
                   </TabsContent>
@@ -291,13 +309,13 @@ export default function HomePage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="absolute top-2 right-2 z-10 bg-card hover:bg-accent hover:text-accent-foreground"
+                        className="absolute top-2 right-2 z-10 bg-card hover:bg-accent hover:text-accent-foreground text-xs px-3 py-1.5"
                         onClick={handleCopyCode}
                         disabled={!generatedCode || isLoading}
                       >
                         <Copy className="h-4 w-4 mr-2" /> Copy Code
                       </Button>
-                      <ScrollArea className="h-[300px] md:h-[400px] w-full rounded-md border border-border p-4 bg-muted/30">
+                      <ScrollArea className="h-[300px] md:h-[400px] w-full rounded-md border border-border p-4 bg-muted/20">
                         {isLoading && !generatedCode ? (
                           <div className="flex items-center justify-center h-full">
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -312,8 +330,8 @@ export default function HomePage() {
                         )}
                       </ScrollArea>
                        {!isGenerationComplete && generatedCode && !isLoading && (
-                         <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2 text-center">
-                           Content may be truncated. The AI is working to generate the complete page.
+                         <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2 text-center animate-pulse">
+                           Generating more content... Please wait.
                          </p>
                        )}
                     </div>
@@ -325,22 +343,24 @@ export default function HomePage() {
         )}
         
         {!originalImage && !isLoading && !error && (
-          <Card className="w-full shadow-xl bg-card text-card-foreground py-12">
+          <Card className="w-full shadow-xl bg-card/80 backdrop-blur-md border-border/50 rounded-xl py-12 animate-slide-in-bottom">
             <CardContent className="text-center">
               <ImageIcon size={64} className="mx-auto text-muted-foreground/50 mb-4" />
-              <p className="text-muted-foreground font-body text-lg">Upload an image to get started!</p>
+              <h2 className="text-xl font-semibold text-foreground mb-2">Ready to Transform Your Designs?</h2>
+              <p className="text-muted-foreground font-body text-lg">
+                Upload an image of your UI mockup and let AI craft the code for you.
+              </p>
             </CardContent>
           </Card>
         )}
       </main>
 
-      <footer className="w-full max-w-6xl mt-12 pt-8 border-t border-border/50 text-center text-muted-foreground font-body text-sm">
-        <p>&copy; {new Date().getFullYear()} PhotoReplicator AI. Powered by Genkit & Next.js.</p>
+      <footer className="w-full max-w-6xl mt-16 py-8 border-t border-border/30 text-center">
+        <p className="text-muted-foreground font-body text-sm">&copy; {new Date().getFullYear()} PhotoReplicator AI. Powered by Genkit & Next.js.</p>
          <p className="text-xs text-muted-foreground/70 mt-1">
-          Note: AI-generated code is a starting point and may require adjustments.
+          AI-generated code is a starting point. Always review and refine for production use.
         </p>
       </footer>
     </div>
   );
 }
-

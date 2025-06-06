@@ -4,35 +4,35 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%; /* Lighter Gray */
-    --foreground: 210 40% 10%; /* Dark Gray */
-    
+    --background: 220 40% 98%; /* Light Grayish Blue - Softer than pure white */
+    --foreground: 220 25% 15%; /* Dark Slate Gray - Softer than pure black */
+
     --card: 0 0% 100%; /* White */
-    --card-foreground: 210 40% 10%; /* Dark Gray */
-    
+    --card-foreground: 220 25% 15%; /* Dark Slate Gray */
+
     --popover: 0 0% 100%; /* White */
-    --popover-foreground: 210 40% 10%; /* Dark Gray */
-    
-    --primary: 262.1 83.3% 57.8%; /* Vibrant Purple */
-    --primary-foreground: 0 0% 98%; /* Almost White */
-    
+    --popover-foreground: 220 25% 15%; /* Dark Slate Gray */
+
+    --primary: 250 65% 55%; /* A slightly softer, modern purple */
+    --primary-foreground: 210 40% 98%; /* Almost White */
+
     --secondary: 210 40% 96.1%; /* Light Gray Blue */
-    --secondary-foreground: 210 40% 10%; /* Dark Gray */
-    
-    --muted: 210 40% 96.1%; /* Light Gray Blue */
-    --muted-foreground: 210 30% 50%; /* Medium Gray */
-    
-    --accent: 30 90% 55%; /* Bright Orange */
-    --accent-foreground: 0 0% 98%; /* Almost White */
-    
-    --destructive: 0 84.2% 60.2%; /* Red */
+    --secondary-foreground: 220 25% 25%; /* Darker Gray for secondary text */
+
+    --muted: 210 40% 94%; /* Slightly darker muted for subtle backgrounds */
+    --muted-foreground: 215 20.2% 65.1%; /* Softer muted text */
+
+    --accent: 30 95% 58%; /* Vibrant Orange - kept for strong call to action */
+    --accent-foreground: 210 40% 98%; /* Almost White */
+
+    --destructive: 0 70% 50%; /* Slightly desaturated red */
     --destructive-foreground: 0 0% 98%; /* Almost White */
-    
-    --border: 210 40% 90%; /* Light Gray Border */
-    --input: 210 40% 96.1%; /* Light Gray Blue Input Background */
-    --ring: 262.1 83.3% 57.8%; /* Vibrant Purple for focus rings */
-    
-    --radius: 0.75rem; /* Slightly more rounded corners */
+
+    --border: 210 30% 88%; /* Softer border color */
+    --input: 210 30% 96%; /* Light Gray Blue Input Background */
+    --ring: 250 65% 60%; /* Vibrant Purple for focus rings, slightly lighter */
+
+    --radius: 0.75rem; /* Modern rounded corners */
 
     /* Chart colors - can be refined if charts are used extensively */
     --chart-1: hsl(var(--primary));
@@ -42,7 +42,7 @@
     --chart-5: 120 60% 45%; /* A distinct green */
 
     /* Sidebar specific variables - can be adjusted if sidebar is added */
-    --sidebar-background: 220 15% 96%; 
+    --sidebar-background: 220 15% 96%;
     --sidebar-foreground: 220 10% 20%;
     --sidebar-primary: hsl(var(--primary));
     --sidebar-primary-foreground: hsl(var(--primary-foreground));
@@ -53,41 +53,42 @@
   }
 
   .dark {
-    --background: 224 71.4% 4.1%; /* Darker blue-black */
-    --foreground: 210 20% 98%; /* Light gray for text */
-    
-    --card: 224 71.4% 6.1%; /* Slightly lighter dark blue */
-    --card-foreground: 210 20% 98%;
-    
-    --popover: 224 71.4% 4.1%;
-    --popover-foreground: 210 20% 98%;
-    
-    --primary: 250 70% 65%; /* Lighter purple for dark mode */
-    --primary-foreground: 210 20% 98%;
-    
-    --secondary: 215 27.9% 16.9%; /* Darker gray-blue */
-    --secondary-foreground: 210 20% 98%;
-    
-    --muted: 215 27.9% 16.9%;
-    --muted-foreground: 217.9 10.6% 64.9%;
-    
-    --accent: 30 90% 60%; /* Orange, slightly adjusted for dark mode */
-    --accent-foreground: 210 20% 98%;
-    
-    --destructive: 0 62.8% 50.6%; /* Slightly desaturated red */
-    --destructive-foreground: 210 20% 98%;
-    
-    --border: 215 27.9% 20.9%; /* Darker border */
-    --input: 215 27.9% 16.9%;
-    --ring: 250 70% 70%; /* Lighter purple for ring in dark mode */
+    --background: 222 47% 11%; /* Darker, slightly desaturated blue */
+    --foreground: 210 40% 98%; /* Almost white for text */
 
-    --sidebar-background: 224 71.4% 5.1%;
-    --sidebar-foreground: 210 20% 90%;
+    --card: 222 47% 14%; /* Slightly lighter than background */
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 250 75% 70%; /* Lighter, vibrant purple for dark mode */
+    --primary-foreground: 222 47% 11%; /* Dark text on primary */
+
+    --secondary: 215 30% 18%; /* Darker gray-blue */
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 215 30% 18%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 30 90% 65%; /* Brighter Orange for dark mode */
+    --accent-foreground: 222 47% 11%; /* Dark text on accent */
+
+    --destructive: 0 63% 51%; /* Red */
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217 33% 25%; /* Darker, slightly desaturated border */
+    --input: 217 33% 20%; /* Darker input background */
+    --ring: 250 75% 70%; /* Lighter purple for ring */
+
+    /* Sidebar specific variables - can be adjusted if sidebar is added */
+    --sidebar-background: 222 47% 9%;
+    --sidebar-foreground: 210 40% 90%;
     --sidebar-primary: hsl(var(--primary));
     --sidebar-primary-foreground: hsl(var(--primary-foreground));
-    --sidebar-accent: 224 71.4% 12.1%;
-    --sidebar-accent-foreground: 210 20% 98%;
-    --sidebar-border: 215 27.9% 18.9%;
+    --sidebar-accent: 222 47% 15%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 22%;
     --sidebar-ring: hsl(var(--ring));
   }
 }
@@ -104,8 +105,11 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-headline), sans-serif;
   }
-  body, p, span, div, button, input, textarea, label, select, option, pre { /* Added pre for consistent code font */
+  body, p, span, div, button, input, textarea, label, select, option {
     font-family: var(--font-body), serif;
+  }
+  pre, code {
+    font-family: var(--font-code), monospace;
   }
 
   /* Ensure code blocks use monospace font */
