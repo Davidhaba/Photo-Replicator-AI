@@ -1,308 +1,178 @@
 
 'use client';
 
-import React, { useState, useRef } from 'react';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input"; // Corrected import
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, AlertCircle, ImageOff, Monitor, Code, UploadCloud, Wand2, ClipboardCopy } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { generateWebpageAction, type GenerateWebpageResult } from '@/app/actions';
-import { ImageUpload } from '@/components/ImageUpload';
+import React from 'react';
+import Head from 'next/head'; // Import Head for managing document head elements
 
 export default function HomePage() {
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
-  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'preview' | 'code'>('preview');
-  const [isCopied, setIsCopied] = useState<boolean>(false);
-  const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleImageSelected = (imageDataUri: string | null) => {
-    if (imageDataUri) {
-      setUploadedImage(imageDataUri);
-      setGeneratedCode(null);
-      setError(null);
-      setActiveTab('preview'); // Switch to preview tab when a new image is uploaded
-    } else {
-      setUploadedImage(null);
-      setGeneratedCode(null);
-      setError("No file selected or file reading error.");
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!uploadedImage) {
-      setError("Please upload an image first.");
-      toast({
-        variant: "destructive",
-        title: "No Image",
-        description: "Please upload an image before generating.",
-      });
-      return;
-    }
-    setIsLoading(true);
-    setError(null);
-    setGeneratedCode(null);
-
-    try {
-      const result: GenerateWebpageResult = await generateWebpageAction(uploadedImage);
-      
-      let finalCode = result.generatedCode;
-      if (finalCode) {
-        const markdownBlockRegex = /^```html\s*([\s\S]*?)\s*```$/;
-        const match = finalCode.trim().match(markdownBlockRegex);
-        if (match && match[1]) {
-          finalCode = match[1].trim();
-        }
-      }
-      
-      if (result.error) {
-        setError(result.error);
-        toast({
-          variant: "destructive",
-          title: "Generation Error",
-          description: result.error,
-        });
-      } else if (finalCode) {
-        setGeneratedCode(finalCode);
-        setActiveTab('preview'); // Show preview first
-        toast({
-          title: "Success!",
-          description: "Webpage code generated. Check the preview and code tabs.",
-        });
-      } else {
-        setError("AI did not return any content. Please try again.");
-         toast({
-          variant: "destructive",
-          title: "Empty Response",
-          description: "AI did not return any content. Please try again.",
-        });
-      }
-    } catch (e: any) {
-      const errorMessage = e.message || "An unexpected error occurred.";
-      setError(errorMessage);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: errorMessage,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleTryAgain = () => {
-    setError(null);
-    setUploadedImage(null);
-    setGeneratedCode(null);
-    setActiveTab('preview');
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""; // Clear the file input
-    }
-  };
-
-  const handleCopyCode = async () => {
-    if (generatedCode) {
-      try {
-        await navigator.clipboard.writeText(generatedCode);
-        setIsCopied(true);
-        toast({
-          title: "Copied!",
-          description: "HTML code copied to clipboard.",
-        });
-        setTimeout(() => setIsCopied(false), 2000); // Reset after 2 seconds
-      } catch (err) {
-        console.error('Failed to copy text: ', err);
-        toast({
-          variant: "destructive",
-          title: "Copy Failed",
-          description: "Could not copy code to clipboard.",
-        });
-      }
-    }
-  };
-
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-gray-100">
-      <header className="sticky top-0 z-50 w-full border-b border-purple-700/50 bg-slate-900/80 backdrop-blur supports-[backdrop-filter]:bg-slate-900/60">
-        <div className="container flex h-20 max-w-screen-xl items-center justify-between px-4 md:px-6">
-          <div className="flex items-center space-x-2">
-            <Wand2 className="h-8 w-8 text-purple-400" />
-            <h1 className="text-3xl font-headline bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-500">
-              Pixel Perfect
-            </h1>
-          </div>
-          <p className="text-sm text-purple-300 hidden md:block">AI Image to HTML/CSS Converter</p>
-        </div>
-      </header>
+    <>
+      <Head>
+        <meta charSet="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Settings Page</title>
+        <style jsx global>{`
+          body {
+            font-family: sans-serif;
+            margin: 0;
+            background-color: #000;
+            color: #fff;
+          }
 
-      <main className="flex-1 container mx-auto px-4 py-8 md:px-6 md:py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-          <div className="flex flex-col gap-6">
-            <Card className="bg-slate-800/70 border-purple-700/50 shadow-xl">
-              <CardHeader>
-                <CardTitle className="font-headline text-2xl text-purple-300 flex items-center">
-                  <UploadCloud className="mr-3 h-7 w-7 text-purple-400" /> Upload Your Design
-                </CardTitle>
-                <CardDescription className="text-purple-400/80">
-                  Upload an image of a webpage, UI sketch, or mockup. Our AI will weave its magic.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ImageUpload 
-                  onImageSelect={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onloadend = () => {
-                        handleImageSelected(reader.result as string);
-                      };
-                      reader.readAsDataURL(file);
-                    } else {
-                      handleImageSelected(null);
-                    }
-                  }} 
-                  disabled={isLoading} 
-                  inputId="page-image-upload"
-                  ref={fileInputRef}
-                />
-                {uploadedImage && (
-                  <div className="mt-6">
-                    <h3 className="text-lg font-semibold mb-3 text-purple-300">Original Image:</h3>
-                    <div className="border-2 border-purple-600/50 rounded-lg overflow-hidden shadow-md bg-slate-700/50 p-2">
-                      <img
-                        src={uploadedImage}
-                        alt="Uploaded design preview"
-                        className="w-full h-auto object-contain max-h-[400px] rounded"
-                        data-ai-hint="uploaded design screenshot"
-                      />
-                    </div>
-                  </div>
-                )}
-                <Button 
-                  onClick={handleSubmit} 
-                  disabled={isLoading || !uploadedImage}
-                  className="w-full mt-6 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Wand2 className="mr-2 h-5 w-5" />
-                      Generate Webpage
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+          .container {
+            width: 100%;
+            max-width: 600px; /* Adjust as needed */
+            margin: 0 auto;
+            padding: 20px;
+          }
 
-          <div className="flex flex-col gap-6">
-            <Card className="bg-slate-800/70 border-purple-700/50 shadow-xl h-full flex flex-col min-h-[500px] lg:min-h-[calc(100vh-15rem)]">
-              <CardHeader>
-                <CardTitle className="font-headline text-2xl text-purple-300">Generated Result</CardTitle>
-                 <div className="flex border-b border-purple-700/30 mt-2">
-                  <Button
-                    variant={activeTab === 'preview' ? 'secondary' : 'ghost'}
-                    onClick={() => setActiveTab('preview')}
-                    className={`flex-1 py-3 rounded-none border-b-2 ${activeTab === 'preview' ? 'border-pink-500 text-pink-400 bg-slate-700/50 font-semibold' : 'border-transparent text-purple-300 hover:bg-slate-700/30 hover:text-purple-200'}`}
-                  >
-                    <Monitor className="mr-2 h-5 w-5" /> Preview
-                  </Button>
-                  <Button
-                    variant={activeTab === 'code' ? 'secondary' : 'ghost'}
-                    onClick={() => setActiveTab('code')}
-                    className={`flex-1 py-3 rounded-none border-b-2 ${activeTab === 'code' ? 'border-pink-500 text-pink-400 bg-slate-700/50 font-semibold' : 'border-transparent text-purple-300 hover:bg-slate-700/30 hover:text-purple-200'}`}
-                  >
-                    <Code className="mr-2 h-5 w-5" /> HTML Code
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="flex-grow flex flex-col p-0">
-                {isLoading ? (
-                  <div className="flex flex-col items-center justify-center flex-grow text-center p-6">
-                    <Loader2 className="h-20 w-20 animate-spin text-purple-400 mb-6" />
-                    <p className="font-body text-2xl text-purple-300">
-                      Conjuring HTML from pixels...
-                    </p>
-                    <p className="font-body text-lg text-purple-400/80 mt-2">
-                      This enchanted process may take a few moments.
-                    </p>
-                  </div>
-                ) : error ? (
-                  <div className="p-6">
-                    <Alert variant="destructive" className="bg-red-900/30 border-red-700 text-red-300">
-                      <AlertCircle className="h-5 w-5 text-red-400" />
-                      <AlertTitle className="font-headline text-lg text-red-200">Oh no, a wild error appeared!</AlertTitle>
-                      <AlertDescription className="font-body text-red-300">
-                        {error}
-                        <Button onClick={handleTryAgain} variant="link" className="p-0 h-auto ml-2 text-red-200 hover:underline">
-                          Try another image?
-                        </Button>
-                      </AlertDescription>
-                    </Alert>
-                  </div>
-                ) : generatedCode ? (
-                  <>
-                    {activeTab === 'preview' ? (
-                      <div className="flex-grow overflow-auto bg-white rounded-b-lg">
-                        <iframe
-                          srcDoc={generatedCode}
-                          title="Generated Webpage Preview"
-                          className="w-full h-full min-h-[400px] border-0"
-                          sandbox="allow-scripts" 
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex-grow flex flex-col overflow-hidden bg-gray-950 rounded-b-lg">
-                        <div className="p-4 flex justify-end border-b border-purple-700/30">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleCopyCode}
-                            disabled={!generatedCode || isLoading}
-                            className="bg-slate-700 hover:bg-slate-600 border-purple-500 text-purple-300 hover:text-purple-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            <ClipboardCopy className="mr-2 h-4 w-4" />
-                            {isCopied ? 'Copied!' : 'Copy Code'}
-                          </Button>
-                        </div>
-                        <div className="flex-grow overflow-auto p-4">
-                          <pre className="text-sm text-gray-300 whitespace-pre-wrap break-all font-code">
-                            <code>{generatedCode}</code>
-                          </pre>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center justify-center flex-grow text-center text-purple-400/70 p-6">
-                    <ImageOff className="w-20 h-20 mb-4" />
-                    <p className="font-body text-xl">Your magically generated webpage will appear here.</p>
-                    <p className="text-md mt-1">Upload an image to summon its HTML counterpart!</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+          .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+          }
+
+          .time {
+            font-size: 16px;
+          }
+
+          .icons {
+            display: flex;
+            align-items: center;
+          }
+
+          .icons img { /* This selector might need adjustment if using Next/Image */
+            margin-left: 5px;
+          }
+
+          .header {
+            color: #90EE90; /* Light Green */
+            font-size: 24px;
+            padding: 10px 0;
+          }
+
+          .search-icon { /* Assuming this class is intended for an icon, placeholder for now */
+            color: #90EE90; /* Light Green */
+            font-size: 24px;
+          }
+
+          .section {
+            background-color: #1e1e1e; /* Darker Gray */
+            border-radius: 20px;
+            padding: 15px;
+            margin-bottom: 15px;
+          }
+
+          .section-title {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+          }
+
+          .section-title img { /* This selector might need adjustment if using Next/Image */
+            width: 24px;
+            height: 24px;
+            margin-right: 10px;
+          }
+
+          .section-title h2 {
+            font-size: 18px;
+            margin: 0;
+          }
+
+          .section-details-container {
+            font-size: 14px;
+            color: #ccc;
+            display: flex;
+            flex-direction: column;
+          }
+
+          .section-details-container > div {
+            margin-bottom: 5px;
+            display: flex; /* Changed to flex for better bullet alignment */
+            align-items: center;
+          }
+
+          .section-details-container > div::before {
+            content: "\\2022"; /* Bullet point */
+            margin-right: 8px; /* Added margin for spacing */
+            color: #ccc;
+          }
+
+          .section-details-container > div:first-child::before {
+            content: none; /* Remove bullet for the first item if not needed */
+          }
+
+
+          .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: #000;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 15px 0;
+            border-top: 1px solid #333; /* Added border for separation */
+          }
+
+          .bottom-nav img { /* This selector might need adjustment if using Next/Image */
+            width: 24px;
+            height: 24px;
+          }
+
+          .bottom-nav svg {
+            fill: #fff;
+          }
+        `}</style>
+      </Head>
+      <div className="container">
+        <div className="top-bar">
+          <div className="time">23:35 &gt;</div> {/* Escaped > */}
+          <div className="icons">
+            {/* Placeholder for icons, assuming they might be SVGs or image components */}
+            <span>📶</span> {/* Example Wifi icon */}
+            <span>🔋</span> {/* Example Battery icon */}
+            <span>19%</span>
           </div>
         </div>
-      </main>
+        <div className="header">Налаштування</div>
+        <div className="section">
+          <div className="section-title">
+            <img src="https://placehold.co/24x24.png" alt="Section Icon" data-ai-hint="settings icon" /> {/* Placeholder */}
+            <h2>Загальні</h2>
+          </div>
+          <div className="section-details-container">
+            <div><span>Про цю модель</span></div>
+            <div><span>AppleCare+</span><span>Доступно</span></div>
+            <div><span>Зображення</span></div>
+          </div>
+        </div>
 
-      <footer className="w-full text-center py-8 border-t border-purple-700/30 bg-slate-900/80 mt-auto">
-        <p className="font-body text-sm text-purple-400/70">
-          Pixel Perfect &copy; {new Date().getFullYear()}. Woven with AI by Firebase Studio.
-        </p>
-      </footer>
-    </div>
+        {/* Example of how other sections might look, based on the style provided */}
+        <div className="section">
+          <div className="section-title">
+            {/* <img src="placeholder.png" alt="Another Section Icon" /> */}
+            <h2>Інші Налаштування</h2>
+          </div>
+          <div className="section-details-container">
+            <div><span>Сповіщення</span></div>
+            <div><span>Звуки та Гаптика</span></div>
+            <div><span>Фокус</span></div>
+            <div><span>Екранний час</span></div>
+          </div>
+        </div>
+
+        <div className="bottom-nav">
+          {/* Placeholder for bottom nav icons */}
+          <img src="https://placehold.co/24x24.png" alt="Nav 1" data-ai-hint="home icon" />
+          <img src="https://placehold.co/24x24.png" alt="Nav 2" data-ai-hint="search icon" />
+          <img src="https://placehold.co/24x24.png" alt="Nav 3" data-ai-hint="profile icon" />
+          <img src="https://placehold.co/24x24.png" alt="Nav 4" data-ai-hint="menu icon" />
+        </div>
+      </div>
+    </>
   );
 }
-
-    
