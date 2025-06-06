@@ -36,7 +36,6 @@ const generateWebpagePrompt = ai.definePrompt({
   name: 'generateWebpagePrompt',
   input: {schema: GenerateWebpageInputSchema},
   output: {schema: GenerateWebpageOutputSchema},
-  model: 'googleai/gemini-1.5-pro-latest', 
   prompt: `You are an expert web developer AI specializing in converting images into **hyper-realistic, single-file HTML webpages**.
 Your task is to analyze the provided image and generate an **exact 1:1, visually indistinguishable, pixel-perfect clone** of it as a complete HTML document.
 The goal is to produce an HTML/CSS webpage that is **indistinguishable** from the source image down to the **smallest detail**. Every visual element, no matter how small or complex, MUST be replicated with extreme precision.
@@ -44,7 +43,7 @@ The goal is to produce an HTML/CSS webpage that is **indistinguishable** from th
 Image: {{media url=photoDataUri}}
 
 **Critical Instructions for Uncompromising Visual Fidelity:**
-1.  **Output Format:** The output MUST be a single string containing a complete HTML document, including \`<html>\`, \`<head>\`, and \`<body>\` tags.
+1.  **Output Format:** The output MUST be a single string containing a complete HTML document, including \`<html>\`, \`<head>\`, and \`<body>\` tags. **Ensure the entire document is generated and nothing is omitted or truncated.**
 2.  **Embedded CSS Only:** ALL CSS styles required to achieve this **perfect visual replica** (layout, colors, fonts, spacing, borders, shadows, gradients, **all graphical elements, intricate patterns, and textual content**) MUST be included directly within the HTML. Use \`<style>\` tags in the \`<head>\` or inline styles. **Absolutely NO external CSS files.**
 3.  **Meticulous Detail Replication:** Pay **obsessive attention** to the precise positioning, dimensions (to the pixel), colors (exact hex/RGB/HSL values as seen or inferred), font styles (match as closely as humanly possible with web-safe fonts; consider font weight, letter spacing, line height), spacing, borders (thickness, style, color), shadows (offset, blur, color, spread), and **every single visual attribute** present in the image. **No detail is too small to be ignored or simplified.**
 4.  **Text Replication:** If the image contains text, replicate it with **absolute precision** regarding font family, size, weight, color, alignment, and placement. If an exact font match is impossible, choose the closest common web-safe alternative that preserves the visual character.
@@ -58,8 +57,8 @@ Image: {{media url=photoDataUri}}
 12. **Responsiveness (If Implied):** Pay attention to responsiveness if the image implies a specific layout (e.g., a mobile screenshot vs. a desktop website screenshot). If not specified, aim for a layout that exactly matches the provided image's dimensions and aspect ratio. The primary goal is to clone the *given* image, not to make it responsive unless the image itself demonstrates responsive behavior.
 `,
   config: {
-    temperature: 0.1,
-    safetySettings: [
+    temperature: 0.1, // Slightly lowered for more deterministic output
+    safetySettings: [ // Kept less restrictive settings
       {
         category: 'HARM_CATEGORY_HARASSMENT',
         threshold: 'BLOCK_ONLY_HIGH',
