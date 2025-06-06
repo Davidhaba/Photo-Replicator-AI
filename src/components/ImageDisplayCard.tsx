@@ -32,17 +32,16 @@ export function ImageDisplayCard({ title, imageUrl, altText, isLoading, hasError
   }, [imageUrl]);
 
   const handleImageError = () => {
-    setIsImageLoadedByBrowser(false);
+    setIsImageLoadedByBrowser(false); // Explicitly set to false as it didn't load
     setImageSrcError(true);
   };
 
   const handleImageLoad = () => {
     setIsImageLoadedByBrowser(true);
-    setImageSrcError(false); 
+    setImageSrcError(false);
   };
 
   const showSkeleton = isLoading || (imageUrl && !isImageLoadedByBrowser && !imageSrcError && !parentHasError);
-  // Display error if NextImage itself failed, or if parent indicated an error and there's no imageUrl to even attempt loading.
   const displayErrorState = imageSrcError || (parentHasError && !imageUrl);
 
   return (
@@ -61,19 +60,21 @@ export function ImageDisplayCard({ title, imageUrl, altText, isLoading, hasError
             </div>
           ) : imageUrl ? (
             <NextImage
+              key={imageUrl} // Added key
               src={imageUrl}
               alt={altText}
               fill
               style={{ objectFit: 'contain' }}
               className={cn(
                 "transition-opacity duration-500 ease-in-out",
-                isImageLoadedByBrowser ? "opacity-100" : "opacity-0"
+                "opacity-100" // Temporarily force opacity to 100 for debugging
+                // isImageLoadedByBrowser ? "opacity-100" : "opacity-0"
               )}
               onLoad={handleImageLoad}
               onError={handleImageError}
               unoptimized={!!(imageUrl && imageUrl.startsWith('data:'))}
               data-ai-hint={aiHint}
-              priority={title === "Original Image"} // Prioritize loading the original image
+              priority={title === "Original Image"}
             />
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground font-body p-4 text-center">
