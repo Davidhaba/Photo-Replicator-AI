@@ -38,13 +38,13 @@ export function ImageUpload({ onImageSelect, disabled, inputId: customInputId }:
     <div className="w-full flex flex-col items-center gap-4 p-6 border-2 border-dashed border-accent rounded-lg hover:border-primary transition-colors duration-300 bg-card shadow-sm">
       <UploadCloud className="w-12 h-12 md:w-16 md:h-16 text-accent" />
       <Label htmlFor={inputId} className="text-center font-body cursor-pointer">
-        <span className="font-semibold text-primary text-lg">Click to upload an image</span>
+        <span className="font-semibold text-primary text-lg">Click or drag to upload an image</span>
         <p className="text-sm text-muted-foreground mt-1">PNG, JPG, WEBP, GIF (Max 5MB)</p>
       </Label>
       <Input
         id={inputId}
         type="file"
-        className="hidden"
+        className="hidden" // Hidden by default, triggered by label/button
         accept="image/png, image/jpeg, image/webp, image/gif"
         onChange={handleFileChange}
         disabled={disabled}
