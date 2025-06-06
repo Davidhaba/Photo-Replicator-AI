@@ -3,8 +3,8 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'Photo Replicator',
-  description: 'AI-powered image recreation',
+  title: 'AI Image to Webpage Generator',
+  description: 'Convert images to HTML/CSS webpages using AI',
 };
 
 export default function RootLayout({

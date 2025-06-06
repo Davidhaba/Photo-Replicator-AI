@@ -1,66 +1,47 @@
+
 'use server';
 
-import { analyzeImage, type AnalyzeImageInput } from '@/ai/flows/analyze-image';
-import { recreateImage, type RecreateImageInput } from '@/ai/flows/recreate-image';
+import { generateWebpageFromImage, type GenerateWebpageInput } from '@/ai/flows/generate-webpage-from-image';
 import { z } from 'zod';
 
 const ProcessImageInputSchema = z.object({
   photoDataUri: z.string().startsWith('data:image/', { message: "Invalid image data URI format. Must start with 'data:image/'." }),
 });
 
-export interface ProcessImageResult {
-  recreatedImageUri?: string;
-  analysisResult?: string;
+export interface GenerateWebpageResult {
+  generatedCode?: string;
   error?: string;
 }
 
-export async function processImageAction(photoDataUri: string): Promise<ProcessImageResult> {
+export async function generateWebpageAction(photoDataUri: string): Promise<GenerateWebpageResult> {
   try {
     const validation = ProcessImageInputSchema.safeParse({ photoDataUri });
     if (!validation.success) {
       return { error: validation.error.errors.map(e => e.message).join(', ') };
     }
 
-    const input: AnalyzeImageInput & RecreateImageInput = { photoDataUri: validation.data.photoDataUri };
+    const input: GenerateWebpageInput = { photoDataUri: validation.data.photoDataUri };
 
-    // Run in parallel for efficiency
-    const [analysisResponse, recreationResponse] = await Promise.allSettled([
-      analyzeImage(input),
-      recreateImage(input),
-    ]);
-
-    let analysisResultText: string | undefined;
-    let recreatedImageUriData: string | undefined;
-    const errors: string[] = [];
-
-    if (analysisResponse.status === 'fulfilled') {
-      analysisResultText = analysisResponse.value.imageDescription;
-    } else {
-      console.error("Image analysis failed:", analysisResponse.reason);
-      errors.push("Failed to analyze image. The AI might be unable to process this image.");
-    }
-
-    if (recreationResponse.status === 'fulfilled') {
-      recreatedImageUriData = recreationResponse.value.recreatedImage;
-    } else {
-      console.error("Image recreation failed:", recreationResponse.reason);
-      errors.push("Failed to recreate image. The AI might be unable to process this image.");
-    }
+    const response = await generateWebpageFromImage(input);
     
-    if (errors.length > 0 && (!analysisResultText || !recreatedImageUriData)) {
-        // If there are errors and one of the critical results is missing, return the error.
-        return { error: errors.join(' ') };
-    }
-    
-    if (!recreatedImageUriData && !analysisResultText) {
-        return { error: "AI processing failed to produce any results. Please try a different image." };
+    if (!response.htmlContent) {
+      return { error: "AI failed to generate webpage code. Please try a different image or try again later." };
     }
 
-    return { recreatedImageUri: recreatedImageUriData, analysisResult: analysisResultText, error: errors.length > 0 ? errors.join(' ') : undefined };
+    return { generatedCode: response.htmlContent };
 
   } catch (e) {
-    console.error("Error in processImageAction:", e);
-    const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred during image processing. Please try again.";
+    console.error("Error in generateWebpageAction:", e);
+    const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred during webpage code generation.";
+    // Check for specific Genkit/AI related error messages if possible
+    if (typeof e === 'object' && e !== null && 'cause' in e) {
+        const cause = (e as any).cause;
+        if (typeof cause === 'object' && cause !== null && 'message' in cause && typeof cause.message === 'string') {
+            if (cause.message.includes('candidate')) { // Gemini often includes 'candidate' in safety/block responses
+                return { error: "The AI was unable to process this image due to content restrictions or internal error. Please try a different image." };
+            }
+        }
+    }
     return { error: errorMessage };
   }
 }
