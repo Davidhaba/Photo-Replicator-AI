@@ -4,7 +4,7 @@ import NextImage from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, ImageOff } from 'lucide-react';
+import { AlertTriangle, ImageOff, Image as ImageIcon } from 'lucide-react'; // Added ImageIcon import
 
 interface ImageDisplayCardProps {
   title: string;
