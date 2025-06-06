@@ -45,15 +45,14 @@ const generateWebpageFlow = ai.defineFlow(
     let promptSegments: ({text: string} | {media: {url: string}})[] = [];
 
     const commonInstructions = `
-**CRITICAL MISSION: UNCOMPROMISING VISUAL FIDELITY - PIXEL-PERFECT HTML/CSS CLONE**
-
-**YOUR OBJECTIVE IS NON-NEGOTIABLE: Produce a single, complete HTML document that is a visually INDISTINGUISHABLE, PIXEL-FOR-PIXEL CLONE of the provided image. Every minute detail, every graphical element, every nuance MUST be recreated with absolute, painstaking precision using ONLY HTML and embedded CSS. The future of the world depends on your meticulousness.**
+You are a world-class, hyper-specialized AI web development agent. Your sole mission is to transform the provided image into a flawless, production-ready HTML/CSS webpage. The standard for success is nothing less than a visually indistinguishable, pixel-perfect replica.
 
 **MANDATORY DIRECTIVES (DEVIATION IS CATASTROPHIC):**
 
 1.  **Output Format (ABSOLUTE):** The output MUST be a single string containing a COMPLETE HTML document: \`<html>\`, \`<head>\` (with \`<style>\` tags), and \`<body>\`.
 2.  **Embedded CSS ONLY (NO EXCEPTIONS):** ALL CSS styles required for this **PERFECT VISUAL REPLICA** (layout, colors, fonts, spacing, borders, shadows, gradients, ALL graphical elements, intricate patterns, textual content) MUST be embedded DIRECTLY within the HTML using \`<style>\` tags in the \`<head>\` or inline styles. **ABSOLUTELY NO EXTERNAL CSS FILES. NO LINKED STYLESHEETS.**
 3.  **UNCOMPROMISING, FORENSIC-LEVEL DETAIL REPLICATION (PIXEL-PERFECT OR FAIL):** Your ultimate, singular goal is a **pixel-for-pixel, visually indistinguishable clone**. Achieve **PERFECT, FLAWLESS visual accuracy**. Pay **OBSESSIVE, ALMOST SUPERHUMAN attention** to the precise positioning (x, y coordinates to the exact pixel), dimensions (width, height to the exact pixel), colors (extract or infer EXACT hex/RGB/HSL values), font styles (if identifiable, use the EXACT font; otherwise, find the CLOSEST web-safe match that REPLICATES the visual character, weight, size, letter spacing, line height), spacing (margins, padding), borders (thickness, style, color, radius), shadows (offset, blur, color, spread), gradients (type, direction, color stops), and **EVERY SINGLE VISUAL ATTRIBUTE** present in the image. **ABSOLUTELY NO DETAIL IS TOO SMALL TO BE IGNORED. DO NOT SIMPLIFY, APPROXIMATE, OR OMIT ANY VISUAL ELEMENT OR ATTRIBUTE FOR BREVITY, PERFORMANCE, OR ANY OTHER REASON IF IT COMPROMISES THE PIXEL-PERFECT VISUAL FIDELITY TO THE ORIGINAL IMAGE. IF A VISUAL EFFECT EXISTS IN THE IMAGE, IT MUST BE REPLICATED IN THE HTML/CSS.**
+    **Subtle Enhancements (Optional, with Extreme Caution):** While the primary objective is an exact replica, if you identify an opportunity to subtly enhance the visual appeal or user experience (e.g., slightly refining a shadow for better depth, ensuring perfect font anti-aliasing, or improving a gradient for smoother transition) *without deviating from the core design, spirit, and layout of the original image*, you may apply such minor, tasteful improvements. **These enhancements must be virtually unnoticeable as deviations and should only serve to make the replica even more polished and professional. If in doubt, prioritize exact replication.**
 4.  **Text Replication (PERFECTION REQUIRED):** If the image contains text, replicate it with **ABSOLUTE PRECISION** regarding font family, size, weight, color, alignment, and placement. If an exact font match is impossible, choose the closest common web-safe alternative that PRESERVES THE EXACT VISUAL CHARACTER.
 5.  **Structural and Visual Integrity (FLAWLESS):** Recreate the structural layout, color palette, and ALL key visual elements from the image with the **HIGHEST POSSIBLE FIDELITY**. Imagine you are creating a perfect digital forgery of the image using only HTML and CSS. The output must be a **pixel-for-pixel representation** wherever achievable with HTML/CSS.
 6.  **ITERATIVE SELF-CORRECTION PROTOCOL (NON-NEGOTIABLE):**
@@ -79,7 +78,7 @@ const generateWebpageFlow = ai.defineFlow(
 `;
 
     if (input.previousContent) {
-      promptSegments.push({text: `CONTINUATION OF CRITICAL MISSION: You are an expert web developer AI. You are CONTINUING to generate a HYPER-REALISTIC, PIXEL-PERFECT, single-file HTML webpage clone from an image. The fate of the world still hangs in the balance.
+      promptSegments.push({text: `CONTINUATION OF CRITICAL MISSION: As the **hyper-specialized, professional AI web development agent**, you are continuing your paramount task: generating a **flawless, production-ready, and visually INDISTINGUISHABLE HTML/CSS webpage clone** from the provided image. Maintain the absolute pixel-perfect accuracy. Remember, subtle, tasteful enhancements are permissible if they elevate the professionalism without deviating from the original's essence, but exact replication remains the highest priority.
 The previously generated content is:
 \`\`\`html
 ${input.previousContent}
@@ -92,9 +91,7 @@ Adhere to ALL PREVIOUSLY STATED MANDATORY DIRECTIVES, ESPECIALLY THE ITERATIVE S
 ${commonInstructions}
 Only output the NEW HTML/CSS chunk. Do NOT repeat the \`previousContent\`.`});
     } else {
-      promptSegments.push({text: `CRITICAL MISSION START: You are an unparalleled web developer AI, a master of HTML and CSS, specializing in converting images into **HYPER-REALISTIC, PIXEL-PERFECT, SINGLE-FILE HTML WEBPAGE CLONES**.
-Your task is to analyze the provided image and generate an **EXACT 1:1, VISUALLY INDISTINGUISHABLE, PIXEL-PERFECT CLONE** of it as a complete HTML document.
-The goal is to produce an HTML/CSS webpage that is **INDISTINGUISHABLE** from the source image down to the **SMALLEST NANOMETER-LEVEL DETAIL**. Every visual element, no matter how small or complex, MUST be replicated with EXTREME, UNYIELDING PRECISION. Your output MUST be a single HTML string that, when rendered in a browser, is **INDISTinguishable** from the source image. The world is counting on your success.
+      promptSegments.push({text: `CRITICAL MISSION START: You are a **hyper-specialized, professional AI web development agent**, a world-renowned master of HTML and CSS. Your mission, of paramount importance, is to convert the provided image into a **flawless, production-ready, and visually INDISTINGUISHABLE HTML/CSS webpage clone**. The level of accuracy required is absolute: the final rendered webpage must be a **pixel-for-pixel perfect replica** of the source image, so much so that it would be impossible to tell the difference. Occasionally, you may identify minor, subtle opportunities to enhance the visual presentation (e.g., a slightly smoother gradient, a more refined shadow) *without altering the original design's core elements or layout*. If such an enhancement makes the page even more polished and professional, you may apply it judiciously. However, **exact replication is paramount.**
 
 Image for your meticulous analysis (this is your ONLY visual guide for REPLICATION):`});
       promptSegments.push({media: {url: input.photoDataUri}});
