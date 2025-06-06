@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
@@ -11,7 +10,7 @@ import { generateWebpageAction } from './actions';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ImageUpload } from '@/components/ImageUpload';
 
-const MAX_ATTEMPTS = 5;
+const MAX_ATTEMPTS = 5; // Maximum number of chunks/attempts
 
 export default function HomePage() {
   const [originalImage, setOriginalImage] = useState<string | null>(null);
@@ -48,7 +47,7 @@ export default function HomePage() {
     setProgressMessage("");
     setAttempts(0);
     if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+      fileInputRef.current.value = ""; // Reset file input
     }
   };
 
@@ -63,7 +62,7 @@ export default function HomePage() {
     }
     setIsLoading(true);
     setError(null);
-    setGeneratedCode("");
+    setGeneratedCode(""); // Clear previous code
     setIsGenerationComplete(false);
     setProgressMessage("Initializing generation...");
     setAttempts(0);
@@ -74,7 +73,7 @@ export default function HomePage() {
 
     while (currentAttempt < MAX_ATTEMPTS && !complete) {
       currentAttempt++;
-      setAttempts(currentAttempt);
+      setAttempts(currentAttempt); // Update attempts for progress bar
       setProgressMessage(`Generating code chunk ${currentAttempt}/${MAX_ATTEMPTS}...`);
       try {
         const result = await generateWebpageAction(originalImage, currentAttempt > 1 ? accumulatedCode : undefined);
@@ -86,20 +85,20 @@ export default function HomePage() {
             description: result.error,
             variant: "destructive",
           });
-          if (result.generatedCode) {
+          if (result.generatedCode) { // Still display partial code if any
              accumulatedCode += result.generatedCode;
              setGeneratedCode(accumulatedCode);
           }
           setIsGenerationComplete(true);
           setProgressMessage("Generation failed.");
-          break;
+          break; 
         }
 
         if (result.generatedCode) {
           accumulatedCode += result.generatedCode;
           setGeneratedCode(accumulatedCode);
         }
-
+        
         complete = result.isComplete ?? false;
         setIsGenerationComplete(complete);
 
@@ -110,10 +109,11 @@ export default function HomePage() {
             duration: 3000,
           });
         } else if (!complete && !result.generatedCode && currentAttempt > 1) {
-           console.warn("AI returned no new content during continuation but indicated it's not complete.");
+           // If AI says not complete but sends no code (and it's not the first chunk), assume it's done or errored.
+           console.warn("AI returned no new content during continuation but indicated it's not complete. Assuming completion.");
            complete = true;
            setIsGenerationComplete(true);
-           setProgressMessage("Generation finished with potential truncation.");
+           setProgressMessage("Generation finished. Review the output.");
         }
 
       } catch (e: any) {
@@ -125,9 +125,9 @@ export default function HomePage() {
           description: errorMessage,
           variant: "destructive",
         });
-        setIsGenerationComplete(true);
+        setIsGenerationComplete(true); // Stop further attempts
         setProgressMessage("Generation critically failed.");
-        break;
+        break; 
       }
     }
 
@@ -146,7 +146,7 @@ export default function HomePage() {
           className: "bg-green-600 text-white border-green-700"
         });
         setProgressMessage("Generation Complete!");
-    } else if (!accumulatedCode && !error) {
+    } else if (!accumulatedCode && !error && !isLoading) { // Check !isLoading to avoid this on initial load
         setError("AI did not generate any code. Please try a different image or check AI service status.");
         toast({
           title: "No Code Generated",
@@ -155,7 +155,7 @@ export default function HomePage() {
         });
         setProgressMessage("No code generated.");
     }
-
+    
     setIsLoading(false);
   };
 
@@ -200,7 +200,7 @@ export default function HomePage() {
         </p>
       </header>
 
-      <main className="w-full max-w-6xl flex flex-col items-center gap-8">
+      <main className="w-full max-w-4xl flex flex-col items-center gap-8"> {/* Reduced max-width for better focus */}
         <Card className="w-full shadow-2xl bg-card/90 backdrop-blur-lg border border-border/60 rounded-xl overflow-hidden transform hover:scale-[1.01] transition-transform duration-300">
           <CardHeader className="pb-4 bg-gradient-to-r from-primary/5 to-accent/5">
             <CardTitle className="text-2xl md:text-3xl font-headline text-primary flex items-center justify-center sm:justify-start">
@@ -270,7 +270,7 @@ export default function HomePage() {
             </CardHeader>
             <CardContent className="p-0">
               <p className="font-body text-sm">{error}</p>
-               {generatedCode && (
+               {generatedCode && ( // Show partially generated code even on error if available
                  <div className="mt-4">
                     <p className="text-sm font-medium mb-1">Partially generated code (if any):</p>
                     <ScrollArea className="h-[150px] w-full rounded-md border bg-background/50 p-3">
@@ -304,7 +304,7 @@ export default function HomePage() {
                 </TabsList>
                 <TabsContent value="preview" className="flex-grow">
                   <div className="aspect-video w-full h-full relative bg-muted/20 rounded-lg overflow-hidden border border-border shadow-inner">
-                    {isLoading && !generatedCode && ( // This condition might need review if we only show this section when generatedCode exists
+                    {isLoading && !generatedCode && ( 
                       <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/90 backdrop-blur-sm z-10">
                         <Loader2 className="h-12 w-12 animate-spin text-primary" />
                         <p className="mt-4 text-muted-foreground font-body">Crafting your webpage...</p>
