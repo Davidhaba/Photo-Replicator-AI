@@ -4,83 +4,91 @@
 
 @layer base {
   :root {
-    --background: 30 33% 97%; /* Light Beige */
-    --foreground: 30 10% 20%; /* Darker text for readability */
-    --card: 30 33% 99%; /* Slightly off-white for cards */
-    --card-foreground: 30 10% 20%;
-    --popover: 30 33% 97%;
-    --popover-foreground: 30 10% 20%;
-    --primary: 345 35% 65%; /* Dusty Rose */
-    --primary-foreground: 210 40% 98%; /* Light Gray for contrast on primary */
-    --secondary: 270 30% 65%; /* Soft Lavender - shifted for more contrast as secondary */
-    --secondary-foreground: 210 40% 98%;
-    --muted: 30 20% 90%; /* Lighter gray for muted elements */
-    --muted-foreground: 30 10% 45%;
-    --accent: 280 40% 70%; /* Soft Lavender as accent */
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 30 20% 85%; /* Softer border */
-    --input: 30 20% 88%; /* Softer input background */
-    --ring: 345 35% 65%; /* Dusty Rose for focus rings */
-    --radius: 0.5rem; /* Default shadcn radius */
+    --background: 210 40% 98%; /* Lighter Gray */
+    --foreground: 210 40% 10%; /* Dark Gray */
+    
+    --card: 0 0% 100%; /* White */
+    --card-foreground: 210 40% 10%; /* Dark Gray */
+    
+    --popover: 0 0% 100%; /* White */
+    --popover-foreground: 210 40% 10%; /* Dark Gray */
+    
+    --primary: 262.1 83.3% 57.8%; /* Vibrant Purple */
+    --primary-foreground: 0 0% 98%; /* Almost White */
+    
+    --secondary: 210 40% 96.1%; /* Light Gray Blue */
+    --secondary-foreground: 210 40% 10%; /* Dark Gray */
+    
+    --muted: 210 40% 96.1%; /* Light Gray Blue */
+    --muted-foreground: 210 30% 50%; /* Medium Gray */
+    
+    --accent: 30 90% 55%; /* Bright Orange */
+    --accent-foreground: 0 0% 98%; /* Almost White */
+    
+    --destructive: 0 84.2% 60.2%; /* Red */
+    --destructive-foreground: 0 0% 98%; /* Almost White */
+    
+    --border: 210 40% 90%; /* Light Gray Border */
+    --input: 210 40% 96.1%; /* Light Gray Blue Input Background */
+    --ring: 262.1 83.3% 57.8%; /* Vibrant Purple for focus rings */
+    
+    --radius: 0.75rem; /* Slightly more rounded corners */
 
+    /* Chart colors - can be refined if charts are used extensively */
     --chart-1: hsl(var(--primary));
-    --chart-2: hsl(var(--secondary));
-    --chart-3: hsl(var(--accent));
-    --chart-4: 210 75% 50%;
-    --chart-5: 180 65% 45%;
+    --chart-2: hsl(var(--accent));
+    --chart-3: 200 80% 55%; /* A distinct blue */
+    --chart-4: 40 90% 55%;  /* A distinct yellow/orange */
+    --chart-5: 120 60% 45%; /* A distinct green */
 
     /* Sidebar specific variables - can be adjusted if sidebar is added */
-    --sidebar-background: 30 33% 95%; 
-    --sidebar-foreground: 30 10% 25%;
-    --sidebar-primary: 345 35% 60%;
-    --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 30 33% 90%;
-    --sidebar-accent-foreground: 30 10% 25%;
-    --sidebar-border: 30 20% 80%;
-    --sidebar-ring: 345 35% 60%;
+    --sidebar-background: 220 15% 96%; 
+    --sidebar-foreground: 220 10% 20%;
+    --sidebar-primary: hsl(var(--primary));
+    --sidebar-primary-foreground: hsl(var(--primary-foreground));
+    --sidebar-accent: 220 10% 88%;
+    --sidebar-accent-foreground: 220 10% 15%;
+    --sidebar-border: 220 15% 80%;
+    --sidebar-ring: hsl(var(--ring));
   }
 
   .dark {
-    /* For dark mode, we can invert or adjust these.
-       Keeping them distinct allows for different dark/light themes if needed.
-       For now, let's keep it simple and assume the light theme is the primary one.
-       If a dark theme is needed, these would be adjusted accordingly.
-    */
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 6.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 345 35% 65%; /* Dusty Rose */
-    --primary-foreground: 210 40% 98%;
-    --secondary: 270 30% 65%; /* Soft Lavender */
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 280 40% 70%; /* Soft Lavender */
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 345 35% 65%;
-    --chart-1: hsl(var(--primary));
-    --chart-2: hsl(var(--secondary));
-    --chart-3: hsl(var(--accent));
-    --chart-4: 210 75% 50%;
-    --chart-5: 180 65% 45%;
+    --background: 224 71.4% 4.1%; /* Darker blue-black */
+    --foreground: 210 20% 98%; /* Light gray for text */
+    
+    --card: 224 71.4% 6.1%; /* Slightly lighter dark blue */
+    --card-foreground: 210 20% 98%;
+    
+    --popover: 224 71.4% 4.1%;
+    --popover-foreground: 210 20% 98%;
+    
+    --primary: 250 70% 65%; /* Lighter purple for dark mode */
+    --primary-foreground: 210 20% 98%;
+    
+    --secondary: 215 27.9% 16.9%; /* Darker gray-blue */
+    --secondary-foreground: 210 20% 98%;
+    
+    --muted: 215 27.9% 16.9%;
+    --muted-foreground: 217.9 10.6% 64.9%;
+    
+    --accent: 30 90% 60%; /* Orange, slightly adjusted for dark mode */
+    --accent-foreground: 210 20% 98%;
+    
+    --destructive: 0 62.8% 50.6%; /* Slightly desaturated red */
+    --destructive-foreground: 210 20% 98%;
+    
+    --border: 215 27.9% 20.9%; /* Darker border */
+    --input: 215 27.9% 16.9%;
+    --ring: 250 70% 70%; /* Lighter purple for ring in dark mode */
 
-    --sidebar-background: 222.2 84% 3.9%;
-    --sidebar-foreground: 210 40% 90%;
-    --sidebar-primary: 345 35% 60%;
-    --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 222.2 84% 8.9%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217.2 32.6% 12.5%;
-    --sidebar-ring: 345 35% 60%;
+    --sidebar-background: 224 71.4% 5.1%;
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: hsl(var(--primary));
+    --sidebar-primary-foreground: hsl(var(--primary-foreground));
+    --sidebar-accent: 224 71.4% 12.1%;
+    --sidebar-accent-foreground: 210 20% 98%;
+    --sidebar-border: 215 27.9% 18.9%;
+    --sidebar-ring: hsl(var(--ring));
   }
 }
 
@@ -96,8 +104,13 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-headline), sans-serif;
   }
-  body, p, span, div, button, input, textarea, label, select, option {
+  body, p, span, div, button, input, textarea, label, select, option, pre { /* Added pre for consistent code font */
     font-family: var(--font-body), serif;
+  }
+
+  /* Ensure code blocks use monospace font */
+  .font-code {
+    font-family: var(--font-code), monospace;
   }
 }
 
