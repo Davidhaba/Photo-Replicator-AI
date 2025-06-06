@@ -32,7 +32,15 @@ export async function generateWebpageAction(photoDataUri: string): Promise<Gener
 
   } catch (e) {
     console.error("Error in generateWebpageAction:", e);
-    const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred during webpage code generation.";
+    let errorMessage = "An unexpected error occurred during webpage code generation.";
+    if (e instanceof Error) {
+      if (e.message.includes("429 Too Many Requests") || e.message.toLowerCase().includes("quota")) {
+        errorMessage = "You've exceeded the current API usage limits. Please try again later or check your plan and billing details.";
+      } else {
+        errorMessage = e.message;
+      }
+    }
+    
     // Check for specific Genkit/AI related error messages if possible
     if (typeof e === 'object' && e !== null && 'cause' in e) {
         const cause = (e as any).cause;
