@@ -31,32 +31,31 @@ export async function recreateImage(input: RecreateImageInput): Promise<Recreate
   return recreateImageFlow(input);
 }
 
-const recreateImagePrompt = ai.definePrompt({
-  name: 'recreateImagePrompt',
-  input: {schema: RecreateImageInputSchema},
-  output: {schema: RecreateImageOutputSchema},
-  prompt: [
-    {media: {url: '{{{photoDataUri}}}'}},
-    {text: 'Recreate the above image as closely as possible.'},
-  ],
-  config: {
-    responseModalities: ['TEXT', 'IMAGE'],
-  },
-});
-
 const recreateImageFlow = ai.defineFlow(
   {
     name: 'recreateImageFlow',
     inputSchema: RecreateImageInputSchema,
     outputSchema: RecreateImageOutputSchema,
   },
-  async input => {
+  async (input: RecreateImageInput) => {
+    const promptForGenerate = [
+      {media: {url: input.photoDataUri}},
+      {text: 'Recreate the above image as closely as possible.'},
+    ];
+
     const {media} = await ai.generate({
-      prompt: recreateImagePrompt.prompt,
-      model: 'googleai/gemini-2.0-flash-exp',
-      config: recreateImagePrompt.config,
+      prompt: promptForGenerate,
+      model: 'googleai/gemini-2.0-flash-exp', // Explicitly use the image generation model
+      config: {
+        responseModalities: ['TEXT', 'IMAGE'], // Required for image generation
+      },
     });
 
-    return {recreatedImage: media.url!};
+    if (!media || !media.url) {
+      console.error('Image generation failed or did not return a media URL.', media);
+      throw new Error('AI image recreation failed to produce an image.');
+    }
+
+    return {recreatedImage: media.url};
   }
 );
