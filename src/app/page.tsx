@@ -1,192 +1,275 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Loader2, AlertCircle, ImageOff } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Loader2, AlertCircle, ImageOff, Monitor, Code, UploadCloud, Wand2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { recreateImage, type RecreateImageInput, type RecreateImageOutput } from '@/ai/flows/recreate-image';
-import { analyzeImage, type AnalyzeImageInput, type AnalyzeImageOutput } from '@/ai/flows/analyze-image';
+import { generateWebpageAction, type GenerateWebpageResult } from '@/app/actions';
 import { ImageUpload } from '@/components/ImageUpload';
-import { ImageDisplayCard } from '@/components/ImageDisplayCard';
 
-export default function PhotoReplicatorPage() {
-  const [originalImage, setOriginalImage] = useState<string | null>(null);
-  const [recreatedImage, setRecreatedImage] = useState<string | null>(null);
+export default function HomePage() {
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'preview' | 'code'>('preview');
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      setError("No file selected.");
+  const handleImageSelected = (imageDataUri: string | null) => {
+    if (imageDataUri) {
+      setUploadedImage(imageDataUri);
+      setGeneratedCode(null); // Clear previous code
+      setError(null); // Clear previous error
+      // Automatically submit if you want, or wait for a button click
+      // handleSubmit(imageDataUri); 
+    } else {
+      setUploadedImage(null);
+      setGeneratedCode(null);
+      setError("No file selected or file reading error.");
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!uploadedImage) {
+      setError("Please upload an image first.");
+      toast({
+        variant: "destructive",
+        title: "No Image",
+        description: "Please upload an image before generating.",
+      });
       return;
     }
-
-    // Reset states
-    setOriginalImage(null);
-    setRecreatedImage(null);
-    setError(null);
-    setAnalysis(null);
     setIsLoading(true);
+    setError(null);
+    setGeneratedCode(null);
 
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const dataUri = reader.result as string;
-      setOriginalImage(dataUri);
-
-      try {
-        // Perform analysis and recreation in parallel for better UX
-        const [analysisResult, recreationResult] = await Promise.allSettled([
-          analyzeImage({ photoDataUri: dataUri } as AnalyzeImageInput),
-          recreateImage({ photoDataUri: dataUri } as RecreateImageInput)
-        ]);
-
-        if (analysisResult.status === 'fulfilled') {
-          setAnalysis(analysisResult.value.imageDescription);
-        } else {
-          console.error("Image analysis failed:", analysisResult.reason);
-          // Optionally set a specific error for analysis failure
-          // setError(prev => prev ? prev + "\nAnalysis failed." : "Image analysis failed.");
-          toast({
-            variant: "destructive",
-            title: "Image Analysis Failed",
-            description: "Could not analyze the image. Recreation will proceed.",
-          });
-        }
-
-        if (recreationResult.status === 'fulfilled') {
-          setRecreatedImage(recreationResult.value.recreatedImage);
-        } else {
-          console.error("Image recreation failed:", recreationResult.reason);
-          setError(prev => prev ? prev + "\nImage recreation failed." : "Image recreation failed. Please try a different image or check the AI service.");
-          setRecreatedImage(null);
-           toast({
-            variant: "destructive",
-            title: "Image Recreation Failed",
-            description: "Could not recreate the image. " + (recreationResult.reason instanceof Error ? recreationResult.reason.message : "An unknown error occurred."),
-          });
-        }
-
-      } catch (e) {
-        console.error("Error during image processing:", e);
-        const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
-        setError(`Processing error: ${errorMessage}`);
-        toast({
-          variant: "destructive",
-          title: "Processing Error",
-          description: errorMessage,
-        });
-      } finally {
-        setIsLoading(false);
-        // Reset file input to allow re-uploading the same file if needed
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
+    try {
+      const result: GenerateWebpageResult = await generateWebpageAction(uploadedImage);
+      
+      let finalCode = result.generatedCode;
+      // Remove Markdown code block delimiters if present
+      if (finalCode) {
+        const markdownBlockRegex = /^```html\s*([\s\S]*?)\s*```$/;
+        const match = finalCode.trim().match(markdownBlockRegex);
+        if (match && match[1]) {
+          finalCode = match[1].trim();
         }
       }
-    };
-    reader.onerror = () => {
-      setError("Failed to read the image file.");
+      
+      if (result.error) {
+        setError(result.error);
+        toast({
+          variant: "destructive",
+          title: "Generation Error",
+          description: result.error,
+        });
+      } else if (finalCode) {
+        setGeneratedCode(finalCode);
+        toast({
+          title: "Success!",
+          description: "Webpage code generated. Check the preview and code tabs.",
+        });
+      } else {
+        setError("AI did not return any content. Please try again.");
+         toast({
+          variant: "destructive",
+          title: "Empty Response",
+          description: "AI did not return any content. Please try again.",
+        });
+      }
+    } catch (e: any) {
+      const errorMessage = e.message || "An unexpected error occurred.";
+      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: errorMessage,
+      });
+    } finally {
       setIsLoading(false);
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const handleTryAgain = () => {
     setError(null);
-    setOriginalImage(null);
-    setRecreatedImage(null);
-    setAnalysis(null);
+    setUploadedImage(null);
+    setGeneratedCode(null);
+    setActiveTab('preview');
     if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+      // This relies on ImageUpload component exposing its ref or a reset method
+      // For simplicity, if direct ref manipulation is complex, user can re-select
     }
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 max-w-screen-2xl items-center justify-center">
-          <h1 className="text-3xl font-headline text-primary">Photo Replicator</h1>
+    <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-gray-100">
+      <header className="sticky top-0 z-50 w-full border-b border-purple-700/50 bg-slate-900/80 backdrop-blur supports-[backdrop-filter]:bg-slate-900/60">
+        <div className="container flex h-20 max-w-screen-xl items-center justify-between px-4 md:px-6">
+          <div className="flex items-center space-x-2">
+            <Wand2 className="h-8 w-8 text-purple-400" />
+            <h1 className="text-3xl font-headline bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-500">
+              Pixel Perfect
+            </h1>
+          </div>
+          <p className="text-sm text-purple-300 hidden md:block">AI Image to HTML/CSS Converter</p>
         </div>
       </header>
 
       <main className="flex-1 container mx-auto px-4 py-8 md:px-6 md:py-12">
-        <section className="mb-8 text-center">
-          <p className="text-lg sm:text-xl text-muted-foreground font-body max-w-2xl mx-auto">
-            Upload a photo and our AI will analyze it and attempt to recreate it. See the magic unfold side-by-side!
-          </p>
-        </section>
-
-        <section className="mb-10">
-          <ImageUpload onImageSelect={handleImageUpload} disabled={isLoading} inputId="photo-upload-input" />
-        </section>
-
-        {isLoading && (
-          <div className="flex flex-col items-center justify-center my-12 text-center">
-            <Loader2 className="h-16 w-16 animate-spin text-accent mb-4" />
-            <p className="font-body text-xl text-muted-foreground">
-              AI is processing your image...
-            </p>
-            <p className="font-body text-md text-muted-foreground/80">
-              Analyzing and recreating. This might take a few moments.
-            </p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+          {/* Left Column: Image Upload and Original Image Preview */}
+          <div className="flex flex-col gap-6">
+            <Card className="bg-slate-800/70 border-purple-700/50 shadow-xl">
+              <CardHeader>
+                <CardTitle className="font-headline text-2xl text-purple-300 flex items-center">
+                  <UploadCloud className="mr-3 h-7 w-7 text-purple-400" /> Upload Your Design
+                </CardTitle>
+                <CardDescription className="text-purple-400/80">
+                  Upload an image of a webpage, UI sketch, or mockup. Our AI will weave its magic.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ImageUpload 
+                  onImageSelect={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        handleImageSelected(reader.result as string);
+                      };
+                      reader.readAsDataURL(file);
+                    } else {
+                      handleImageSelected(null);
+                    }
+                  }} 
+                  disabled={isLoading} 
+                  inputId="page-image-upload"
+                  ref={fileInputRef}
+                />
+                {uploadedImage && (
+                  <div className="mt-6">
+                    <h3 className="text-lg font-semibold mb-3 text-purple-300">Original Image:</h3>
+                    <div className="border-2 border-purple-600/50 rounded-lg overflow-hidden shadow-md bg-slate-700/50 p-2">
+                      <img
+                        src={uploadedImage}
+                        alt="Uploaded design preview"
+                        className="w-full h-auto object-contain max-h-[400px] rounded"
+                        data-ai-hint="uploaded design screenshot"
+                      />
+                    </div>
+                  </div>
+                )}
+                <Button 
+                  onClick={handleSubmit} 
+                  disabled={isLoading || !uploadedImage}
+                  className="w-full mt-6 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="mr-2 h-5 w-5" />
+                      Generate Webpage
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
           </div>
-        )}
 
-        {error && !isLoading && (
-          <Alert variant="destructive" className="w-full max-w-2xl mx-auto my-8">
-            <AlertCircle className="h-5 w-5" />
-            <AlertTitle className="font-headline text-lg">Oops! Something went wrong.</AlertTitle>
-            <AlertDescription className="font-body">
-              {error}
-              <Button onClick={handleTryAgain} variant="link" className="p-0 h-auto ml-2 text-destructive-foreground hover:underline">
-                Try another image?
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-          <ImageDisplayCard 
-            title="Original Image" 
-            imageUrl={originalImage} 
-            altText="Original uploaded image"
-            isLoading={isLoading && !originalImage}
-            hasError={!!error && !originalImage}
-          />
-          <ImageDisplayCard 
-            title="AI Recreated Image" 
-            imageUrl={recreatedImage} 
-            altText="AI recreated image"
-            isLoading={isLoading && !recreatedImage && !!originalImage} // Only load recreated if original is there
-            hasError={!!error && !recreatedImage && !!originalImage} // Only show error for recreated if original was processed
-            data-ai-hint="replicated photo"
-          />
+          {/* Right Column: Generated Code/Preview */}
+          <div className="flex flex-col gap-6">
+            <Card className="bg-slate-800/70 border-purple-700/50 shadow-xl h-full flex flex-col min-h-[500px] lg:min-h-[calc(100vh-15rem)]">
+              <CardHeader>
+                <CardTitle className="font-headline text-2xl text-purple-300">Generated Result</CardTitle>
+                 <div className="flex border-b border-purple-700/30 mt-2">
+                  <Button
+                    variant={activeTab === 'preview' ? 'secondary' : 'ghost'}
+                    onClick={() => setActiveTab('preview')}
+                    className={`flex-1 py-3 rounded-none border-b-2 ${activeTab === 'preview' ? 'border-pink-500 text-pink-400 bg-slate-700/50' : 'border-transparent text-purple-300 hover:bg-slate-700/30 hover:text-purple-200'}`}
+                  >
+                    <Monitor className="mr-2 h-5 w-5" /> Preview
+                  </Button>
+                  <Button
+                    variant={activeTab === 'code' ? 'secondary' : 'ghost'}
+                    onClick={() => setActiveTab('code')}
+                    className={`flex-1 py-3 rounded-none border-b-2 ${activeTab === 'code' ? 'border-pink-500 text-pink-400 bg-slate-700/50' : 'border-transparent text-purple-300 hover:bg-slate-700/30 hover:text-purple-200'}`}
+                  >
+                    <Code className="mr-2 h-5 w-5" /> HTML Code
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="flex-grow flex flex-col p-0">
+                {isLoading ? (
+                  <div className="flex flex-col items-center justify-center flex-grow text-center p-6">
+                    <Loader2 className="h-20 w-20 animate-spin text-purple-400 mb-6" />
+                    <p className="font-body text-2xl text-purple-300">
+                      Conjuring HTML from pixels...
+                    </p>
+                    <p className="font-body text-lg text-purple-400/80 mt-2">
+                      This enchanted process may take a few moments.
+                    </p>
+                  </div>
+                ) : error ? (
+                  <div className="p-6">
+                    <Alert variant="destructive" className="bg-red-900/30 border-red-700 text-red-300">
+                      <AlertCircle className="h-5 w-5 text-red-400" />
+                      <AlertTitle className="font-headline text-lg text-red-200">Oh no, a wild error appeared!</AlertTitle>
+                      <AlertDescription className="font-body text-red-300">
+                        {error}
+                        <Button onClick={handleTryAgain} variant="link" className="p-0 h-auto ml-2 text-red-200 hover:underline">
+                          Try another image?
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                ) : generatedCode ? (
+                  <>
+                    {activeTab === 'preview' ? (
+                      <div className="flex-grow overflow-auto bg-white rounded-b-lg">
+                        <iframe
+                          srcDoc={generatedCode}
+                          title="Generated Webpage Preview"
+                          className="w-full h-full min-h-[400px] border-0"
+                          sandbox="allow-scripts" 
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex-grow overflow-auto bg-gray-950 p-4 rounded-b-lg">
+                        <pre className="text-sm text-gray-300 whitespace-pre-wrap break-all">
+                          <code>{generatedCode}</code>
+                        </pre>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center justify-center flex-grow text-center text-purple-400/70 p-6">
+                    <ImageOff className="w-20 h-20 mb-4" />
+                    <p className="font-body text-xl">Your magically generated webpage will appear here.</p>
+                    <p className="text-md mt-1">Upload an image to summon its HTML counterpart!</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
-
-        {analysis && !isLoading && !error && (
-          <Card className="mt-8 w-full max-w-3xl mx-auto shadow-lg">
-            <CardHeader>
-              <CardTitle className="font-headline text-2xl text-primary">AI Image Analysis</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="font-body text-md text-foreground">{analysis}</p>
-            </CardContent>
-          </Card>
-        )}
       </main>
-      
-      <footer className="w-full text-center py-6 border-t border-border/40 bg-background mt-auto">
-        <p className="font-body text-sm text-muted-foreground">
-          Photo Replicator &copy; {new Date().getFullYear()}. Powered by Generative AI.
+
+      <footer className="w-full text-center py-8 border-t border-purple-700/30 bg-slate-900/80 mt-auto">
+        <p className="font-body text-sm text-purple-400/70">
+          Pixel Perfect &copy; {new Date().getFullYear()}. Woven with AI by Firebase Studio.
         </p>
       </footer>
     </div>
   );
 }
+
+    
