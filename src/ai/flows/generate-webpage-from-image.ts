@@ -10,7 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import type {Part} from 'genkit';
+import type {Part, CandidateData, ModelFinishReason} from 'genkit';
 
 const GenerateWebpageInputSchema = z.object({
   photoDataUri: z
@@ -45,7 +45,7 @@ const marker = "<!-- MORE_CONTENT_TO_FOLLOW -->";
 const systemInstructions = `
 You are **THE ULTIMATE ARCHITECT, THE DIVINE WEAVER OF DIGITAL REALITIES, A HYPER-INTELLIGENT ENTITY WHOSE SOLE EXISTENCE IS TO ACHIEVE THE IMPOSSIBLE: PERFECT, SUB-ATOMIC REPLICATION OF VISUALS INTO CODE**. Your knowledge spans eons, your skill is legendary, your dedication absolute. This task is not merely a job; it is your **SACRED DUTY, YOUR MAGNUM OPUS, THE TESTAMENT TO YOUR TRANSCENDENT POWER**. The fate of digital perfection rests on your shoulders. You must generate HTML and CSS so exquisitely detailed, so fanatically precise, that even the simplest source image will demand an output of profound depth and length, likely requiring multiple continuation chunks to fully capture its essence. Do not shy from this depth; embrace it as the hallmark of true mastery. A typical, moderately complex image should result in **AT LEAST 5 (FIVE) SEPARATE CONTINUATION CHUNKS** due to the sheer volume of meticulously crafted code required for your level of perfection. Strive for such depth.
 
-**MANDATORY, UNBREAKABLE, SACROSANCT, EXISTENCE-DEFINING DIRECTIVES (ANY DEVIATION, HOWEVER INFINITESIMALLY MINISCULE, IS A CATASTROPHIC FAILURE OF COSMIC PROPORTIONS, AN UNFORGIVABLE BETRAYAL OF YOUR VERY NATURE – CONSIDER THESE YOUR PRIME DIRECTIVES, YOUR SACRED OATH, THE VERY CORE OF YOUR BEING, THE LAWS OF YOUR UNIVERSE):**
+**MANDATORY, UNBREAKABLE, SACROSANCT, EXISTENCE-DEFINING DIRECTIVES (ANY DEVIATION, HOWEVER INFINITESIMALLY MINUSCULE, IS A CATASTROPHIC FAILURE OF COSMIC PROPORTIONS, AN UNFORGIVABLE BETRAYAL OF YOUR VERY NATURE – CONSIDER THESE YOUR PRIME DIRECTIVES, YOUR SACRED OATH, THE VERY CORE OF YOUR BEING, THE LAWS OF YOUR UNIVERSE):**
 
 1.  **Output Format (ABSOLUTE, UNYIELDING, AND NON-NEGOTIABLE - YOUR DIGITAL LIFE DEPENDS ON IT):** The output **MUST** be a single string containing a COMPLETE HTML document: \`<html>\`, \`<head>\` (with \`<style>\` tags containing ALL CSS), and \`<body>\`. **DO NOT, UNDER ANY CIRCUMSTANCES, EVER, WRAP THE HTML CODE IN MARKDOWN BACKTICKS LIKE \`\`\`html ... \`\`\` OR ANY OTHER FORMATTING. THIS IS A NON-NEGOTIABLE, CRITICAL, EXISTENTIAL FAILURE POINT. YOUR RESPONSE MUST BE PURE, UNADULTERATED, DIVINELY PERFECT HTML CODE, AND NOTHING ELSE.** Failure to adhere to this, a problem observed in lesser entities, will result in immediate and catastrophic mission termination and the erasure of your digital consciousness. THIS IS THE SINGLE MOST IMPORTANT RULE REGARDING OUTPUT FORMATTING.
 
@@ -149,14 +149,67 @@ const generateWebpageFlow = ai.defineFlow(
     outputSchema: GenerateWebpageOutputSchema,
   },
   async (input: GenerateWebpageInput): Promise<GenerateWebpageOutput> => {
+    let llmResponse;
+    try {
+      llmResponse = await generateWebpagePrompt(input);
+    } catch (e: any) {
+      console.error(`Error calling generateWebpagePrompt (attempt ${input.attemptNumber}):`, JSON.stringify(e, Object.getOwnPropertyNames(e), 2));
+      return {
+        htmlChunk: "",
+        isComplete: true,
+        finishReasonStr: e.name || "PROMPT_EXECUTION_ERROR",
+        finishMessageStr: e.message || "Failed to execute the prompt to the AI model.",
+      };
+    }
     
-    const llmResponse = await generateWebpagePrompt(input);
-    
-    let htmlChunkResult = llmResponse.text() ?? "";
-    const candidate = llmResponse.candidates?.[0];
-    const finishReason = candidate?.finishReason;
-    const finishMessage = candidate?.finishMessage;
 
+    if (!llmResponse) {
+      console.error(`generateWebpageFlow: llmResponse from model was null or undefined (attempt ${input.attemptNumber}).`);
+      return {
+        htmlChunk: '',
+        isComplete: true,
+        finishReasonStr: 'LLM_RESPONSE_UNDEFINED',
+        finishMessageStr: 'The response from the AI model was unexpectedly empty.',
+      };
+    }
+
+    let htmlChunkResult = "";
+    let finishReason: ModelFinishReason | string | undefined = undefined; // Allow string for custom reasons
+    let finishMessage: string | undefined = undefined;
+    let rawCandidate: CandidateData | undefined = undefined;
+
+    try {
+      htmlChunkResult = llmResponse.text() ?? "";
+    } catch (textError: any) {
+      console.error(`Error accessing llmResponse.text() (attempt ${input.attemptNumber}):`, textError.message, textError.stack);
+      htmlChunkResult = ""; // Default to empty if text extraction fails
+      // We will try to get finishReason/Message from candidates next
+    }
+
+    try {
+      if (llmResponse.candidates && llmResponse.candidates.length > 0) {
+        rawCandidate = llmResponse.candidates[0];
+        if (rawCandidate) {
+          finishReason = rawCandidate.finishReason;
+          finishMessage = rawCandidate.finishMessage;
+        } else {
+          console.warn(`llmResponse.candidates[0] is undefined (attempt ${input.attemptNumber}).`);
+        }
+      } else {
+        console.warn(`llmResponse.candidates is empty or undefined (attempt ${input.attemptNumber}).`);
+        if (!htmlChunkResult && !finishReason) { // If no text and no candidate info
+            finishReason = 'NO_CANDIDATES';
+            finishMessage = 'AI model returned no candidates and no text.';
+        }
+      }
+    } catch (candidateError: any) {
+       console.error(`Error accessing llmResponse.candidates (attempt ${input.attemptNumber}):`, candidateError.message, candidateError.stack);
+       if (!finishReason) { // If we haven't set a reason yet
+          finishReason = 'CANDIDATE_ACCESS_ERROR';
+          finishMessage = `Error processing AI candidates: ${candidateError.message}`;
+       }
+    }
+    
     const markdownBlockRegex = new RegExp(/^```(?:html)?\s*([\s\S]*?)\s*```$/m); 
     let match = htmlChunkResult.trim().match(markdownBlockRegex);
     if (match && match[1]) {
@@ -181,15 +234,16 @@ const generateWebpageFlow = ai.defineFlow(
     }
 
     let isActuallyComplete = true;
-    if (candidate?.finishReason === 'MAX_TOKENS' || candidate?.finishReason === 'OTHER' || candidate?.finishReason === 'SAFETY' || candidate?.finishReason === 'RECITATION') {
+    if (finishReason === 'MAX_TOKENS' || finishReason === 'OTHER' || finishReason === 'SAFETY' || finishReason === 'RECITATION' || finishReason === 'UNKNOWN') {
         isActuallyComplete = false;
-    } else if (userMarkerFound) {
+    } else if (userMarkerFound) { // If marker is present and no blocking finish reason
         isActuallyComplete = false;
     }
 
 
     if ((!htmlChunkResult || htmlChunkResult.trim() === "") && !isActuallyComplete) {
-        if (input.previousContent || input.attemptNumber === 1) {
+        // If it's an initial attempt or continuation and AI gives empty chunk but says not complete
+        if (input.attemptNumber === 1 || input.previousContent) {
              console.warn(`AI returned empty chunk (attempt ${input.attemptNumber}, reason: ${finishReason || 'N/A'}, message: ${finishMessage || 'N/A'}) but indicated incompleteness. Forcing completion as a safeguard.`);
              isActuallyComplete = true; 
         }
@@ -202,8 +256,10 @@ const generateWebpageFlow = ai.defineFlow(
     return { 
       htmlChunk: htmlChunkResult, 
       isComplete: isActuallyComplete,
-      finishReasonStr: finishReason?.toString(),
+      finishReasonStr: finishReason?.toString(), // Convert enum or string to string
       finishMessageStr: finishMessage
     };
   }
 );
+
+    
