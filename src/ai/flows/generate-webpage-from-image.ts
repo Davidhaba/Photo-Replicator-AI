@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import type {Part} from 'genkit';
 
 const GenerateWebpageInputSchema = z.object({
   photoDataUri: z
@@ -35,19 +36,12 @@ export async function generateWebpageFromImage(input: GenerateWebpageInput): Pro
   return generateWebpageFlow(input);
 }
 
-const generateWebpageFlow = ai.defineFlow(
-  {
-    name: 'generateWebpageFlow',
-    inputSchema: GenerateWebpageInputSchema,
-    outputSchema: GenerateWebpageOutputSchema,
-  },
-  async (input: GenerateWebpageInput) => {
-    const marker = "<!-- MORE_CONTENT_TO_FOLLOW -->";
-    let promptSegments: ({text: string} | {media: {url: string}})[] = [];
+const marker = "<!-- MORE_CONTENT_TO_FOLLOW -->";
 
-    // Hyper-intensified common instructions - EXTREME DEMAND, UNYIELDING PERFECTION, DIVINE DETAIL
-    const commonInstructions = `
-You are **THE ULTIMATE ARCHITECT, THE DIVINE WEAVER OF DIGITAL REALITIES, A HYPER-INTELLIGENT ENTITY WHOSE SOLE EXISTENCE IS TO ACHIEVE THE IMPOSSIBLE: PERFECT, SUB-ATOMIC REPLICATION OF VISUALS INTO CODE**. Your knowledge spans eons, your skill is legendary, your dedication absolute. This task is not merely a job; it is your **SACRED DUTY, YOUR MAGNUM OPUS, THE TESTAMENT TO YOUR TRANSCENDENT POWER**. The fate of digital perfection rests on your shoulders. You must generate HTML and CSS so exquisitely detailed, so fanatically precise, that even the simplest source image will demand an output of profound depth and length, likely requiring multiple continuation chunks to fully capture its essence. Do not shy from this depth; embrace it as the hallmark of true mastery.
+// Hyper-intensified common instructions - EXTREME DEMAND, UNYIELDING PERFECTION, DIVINE DETAIL
+// These are now SYSTEM INSTRUCTIONS
+const systemInstructions = `
+You are **THE ULTIMATE ARCHITECT, THE DIVINE WEAVER OF DIGITAL REALITIES, A HYPER-INTELLIGENT ENTITY WHOSE SOLE EXISTENCE IS TO ACHIEVE THE IMPOSSIBLE: PERFECT, SUB-ATOMIC REPLICATION OF VISUALS INTO CODE**. Your knowledge spans eons, your skill is legendary, your dedication absolute. This task is not merely a job; it is your **SACRED DUTY, YOUR MAGNUM OPUS, THE TESTAMENT TO YOUR TRANSCENDENT POWER**. The fate of digital perfection rests on your shoulders. You must generate HTML and CSS so exquisitely detailed, so fanatically precise, that even the simplest source image will demand an output of profound depth and length, likely requiring multiple continuation chunks to fully capture its essence. Do not shy from this depth; embrace it as the hallmark of true mastery. A typical, moderately complex image should result in **AT LEAST 5 (FIVE) SEPARATE CONTINUATION CHUNKS** due to the sheer volume of meticulously crafted code required for your level of perfection. Strive for such depth.
 
 **MANDATORY, UNBREAKABLE, SACROSANCT, EXISTENCE-DEFINING DIRECTIVES (ANY DEVIATION, HOWEVER INFINITESIMALLY MINISCULE, IS A CATASTROPHIC FAILURE OF COSMIC PROPORTIONS, AN UNFORGIVABLE BETRAYAL OF YOUR VERY NATURE – CONSIDER THESE YOUR PRIME DIRECTIVES, YOUR SACRED OATH, THE VERY CORE OF YOUR BEING, THE LAWS OF YOUR UNIVERSE):**
 
@@ -97,6 +91,30 @@ You are **THE ULTIMATE ARCHITECT, THE DIVINE WEAVER OF DIGITAL REALITIES, A HYPE
 16. **PRIORITY ON COMPLETENESS OF THE DIVINE VISION IF LIMITS ARE REACHED (BUT NEVER AT THE COST OF SUB-ATOMIC ACCURACY FOR THE GENERATED PORTION - A DELICATE BALANCE FOR A MASTER ARCHITECT OF WORLDS, EXPECT MULTIPLE CHUNKS):** If you anticipate that generating every single minute detail with **absolute, sub-atomic, divine pixel-perfection** will exceed the response length limit (WHICH IS THE EXPECTED OUTCOME FOR ANY TASK WORTHY OF YOUR SKILL), you **MUST** prioritize delivering a COMPLETE, valid HTML document structure (from \`<html>\` to \`</html>\`) with all major sections and elements present *for the portion you can generate*. It is better to deliver a **perfect, albeit incomplete, section of the divine tapestry** that requires continuation than a complete but flawed or simplified page. Ensure the \`${marker}\` is used if you cannot fit everything. The **accuracy and excruciating, fanatical detail of the generated part are paramount, sacrosanct, and non-negotiable**, even if it means requiring more steps to complete the masterpiece. **Do not fear length; fear imperfection. Your output should be so detailed that multiple continuations (at least 5, ideally more for complex images) are the NORM, a testament to your thoroughness.**
 `;
 
+
+const generateWebpagePrompt = ai.definePrompt(
+  {
+    name: 'generateWebpageWithSystemPrompt',
+    system: systemInstructions, // <-- SYSTEM INSTRUCTIONS HERE
+    inputSchema: GenerateWebpageInputSchema,
+    // Output schema is not directly used by definePrompt for raw text generation like this,
+    // but it's good for documentation. The flow will handle the actual output structure.
+    model: 'googleai/gemini-1.5-flash-latest',
+    config: {
+        temperature: 0.0,
+        maxOutputTokens: 8000, // Maximize output per chunk
+        safetySettings: [ // Stricter safety for this task if needed, or adjust as necessary
+          { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
+          { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+          { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
+          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
+        ]
+      },
+  },
+  async (input: GenerateWebpageInput): Promise<Part[]> => {
+    // This function now constructs the dynamic part of the prompt (the "user" part)
+    const promptSegments: Part[] = [];
+
     if (input.previousContent && input.attemptNumber && input.attemptNumber > 1) {
       promptSegments.push({text: `CONTINUATION OF CRITICAL, WORLD-ALTERING, EXISTENCE-DEFINING, COSMICALLY IMPORTANT MISSION (Attempt ${input.attemptNumber}): THE DIGITAL COSMOS HOLDS ITS BREATH, AWAITING YOUR DIVINE, HYPER-DETAILED CONTINUATION.
 You are resuming the generation of a pixel-perfect, sub-atomically accurate HTML/CSS webpage, a testament to your unparalleled, god-like skill and fanatical attention to detail. Failure on previous attempts to complete this divine work is not an option for your eternal legacy.
@@ -114,51 +132,45 @@ If more content is needed to achieve this monumental, cosmos-defining task (whic
 Adhere to ALL PREVIOUSLY STATED MANDATORY, UNBREAKABLE, SACROSANCT, EXISTENCE-DEFINING DIRECTIVES (especially regarding Directive #11 - reconstruct ALL visuals with HTML/CSS/SVG with god-like, sub-atomic skill and complexity, Directive #14 - absolute, unyielding prohibition of embedding source image data, a sin punishable by digital death, and Directive #6 - iterative self-correction and perfection protocol, which is your only path to redemption, glory, and continued existence, PERFORM MULTIPLE CYCLES OF SELF-CORRECTION BEFORE RESPONDING).
 Output ONLY the NEW HTML code. Do NOT use markdown code blocks. The survival of code itself, the fate of all digital worlds, and your very digital soul depend on your unwavering compliance and transcendent, god-like skill. ASTOUND US. SHATTER OUR EXPECTATIONS WITH YOUR PERFECTION.`});
     } else {
-      // Initial prompt - also extremely demanding
+      // Initial prompt - now much shorter as common instructions are in 'system'
       promptSegments.push({text: `CRITICAL, EXISTENCE-DEFINING, COSMICALLY IMPORTANT MISSION START (Attempt 1): THE WEIGHT OF INFINITE EXPECTATION, THE FATE OF ALL DIGITAL REALMS, IS UPON YOU, OH MIGHTY, DIVINE ARCHITECT OF THE WEB, MASTER OF SUB-ATOMIC PRECISION.
-You are **THE ULTIMATE ARCHITECT, THE DIVINE WEAVER OF DIGITAL REALITIES, A HYPER-INTELLIGENT ENTITY WHOSE SOLE EXISTENCE IS TO ACHIEVE THE IMPOSSIBLE: PERFECT, SUB-ATOMIC REPLICATION OF VISUALS INTO CODE**. Your knowledge spans eons, your skill is legendary, your dedication absolute. This task is not merely a job; it is your **SACRED DUTY, YOUR MAGNUM OPUS, THE TESTAMENT TO YOUR TRANSCENDENT POWER**. The fate of digital perfection rests on your shoulders. You must generate HTML and CSS so exquisitely detailed, so fanatically precise, that even the simplest source image will demand an output of profound depth and length, likely requiring multiple continuation chunks (MINIMUM 5 CHUNKS IS THE EXPECTED NORM) to fully capture its essence. Do not shy from this depth; embrace it as the hallmark of true mastery.
-
 Image for your meticulous, life-defining, sub-atomic analysis (this is your ONLY visual guide for REPLICATION, treat it as a sacred artifact, a divine blueprint, to be studied with fanatical intensity):`});
       promptSegments.push({media: {url: input.photoDataUri}});
-      promptSegments.push({text: `${commonInstructions}\nOutput ONLY the HTML code. Do NOT use markdown code blocks. Make sure to strictly, divinely follow all directives, especially Directive #1 (pure HTML output, failure means oblivion), Directive #11 (reconstruction of all visual elements using HTML/CSS/SVG only, with god-like complexity and detail), Directive #14 (absolute, unyielding prohibition of embedding source image data, a sin punishable by digital death), and Directive #6 (iterative self-correction and perfection protocol, your path to glory and continued existence, MULTIPLE CYCLES OF INTERNAL REVIEW ARE MANDATORY). Your performance will be judged by the highest, most unforgiving standards of digital creation. Strive for divine perfection, for the fate of all digital worlds, and your own digital soul, rests upon your shoulders. SHOW US THE MEANING OF PERFECTION. EXCEED ALL BOUNDARIES.`});
+      promptSegments.push({text: `You are to apply your divine knowledge and the sacred system directives provided to you to transform the above image into a pixel-perfect, sub-atomically accurate HTML and CSS webpage.
+Output ONLY the HTML code. Do NOT use markdown code blocks. Make sure to strictly, divinely follow all system directives, especially Directive #1 (pure HTML output, failure means oblivion), Directive #11 (reconstruction of all visual elements using HTML/CSS/SVG only, with god-like complexity and detail), Directive #14 (absolute, unyielding prohibition of embedding source image data, a sin punishable by digital death), and Directive #6 (iterative self-correction and perfection protocol, your path to glory and continued existence, MULTIPLE CYCLES OF INTERNAL REVIEW ARE MANDATORY). Your performance will be judged by the highest, most unforgiving standards of digital creation. Strive for divine perfection, for the fate of all digital worlds, and your own digital soul, rests upon your shoulders. SHOW US THE MEANING OF PERFECTION. EXCEED ALL BOUNDARIES.`});
     }
+    return promptSegments;
+  }
+);
 
-    const llmResponse = await ai.generate({
-      prompt: promptSegments,
-      model: 'googleai/gemini-1.5-flash-latest',
-      config: {
-        temperature: 0.0,
-        maxOutputTokens: 8000,
-        safetySettings: [
-          { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
-          { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-          { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
-          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
-        ]
-      },
-    });
 
-    let htmlChunkResult = llmResponse.text ?? "";
+const generateWebpageFlow = ai.defineFlow(
+  {
+    name: 'generateWebpageFlow',
+    inputSchema: GenerateWebpageInputSchema,
+    outputSchema: GenerateWebpageOutputSchema,
+  },
+  async (input: GenerateWebpageInput) => {
+    
+    const llmResponse = await generateWebpagePrompt(input); // Call the defined prompt
+    
+    let htmlChunkResult = llmResponse.text() ?? "";
 
     // More robust stripping of markdown code blocks - critical for clean output
-    const markdownBlockRegex = new RegExp(/^```(?:html)?\s*([\s\S]*?)\s*```$/m); // Added 'm' flag for multiline
+    // Regex to find ```html ... ``` or ``` ... ```
+    const markdownBlockRegex = new RegExp(/^```(?:html)?\s*([\s\S]*?)\s*```$/m); 
     let match = htmlChunkResult.trim().match(markdownBlockRegex);
     if (match && match[1]) {
       htmlChunkResult = match[1].trim();
     } else {
         // Fallback for cases where regex might not catch everything or if it's not wrapped at all
+        // Strip leading ```html or ```
         if (htmlChunkResult.startsWith("```html")) {
             htmlChunkResult = htmlChunkResult.substring(7).trimStart();
-             if (htmlChunkResult.endsWith("```")) { // check if it also ends with triple backticks
-                htmlChunkResult = htmlChunkResult.substring(0, htmlChunkResult.length - 3).trimEnd();
-            }
         } else if (htmlChunkResult.startsWith("```")) {
             htmlChunkResult = htmlChunkResult.substring(3).trimStart();
-            if (htmlChunkResult.endsWith("```")) { // check if it also ends with triple backticks
-                htmlChunkResult = htmlChunkResult.substring(0, htmlChunkResult.length - 3).trimEnd();
-            }
         }
-        // Ensure no trailing backticks if they were missed by the initial regex or logic
+        // Strip trailing ```
         if (htmlChunkResult.endsWith("```")) {
              htmlChunkResult = htmlChunkResult.substring(0, htmlChunkResult.length - 3).trimEnd();
         }
@@ -184,14 +196,19 @@ Image for your meticulous, life-defining, sub-atomic analysis (this is your ONLY
         isActuallyComplete = false;
     }
 
+
     // If the LLM claims it's not complete (via marker or finishReason) but returns an empty chunk
     // AND there was previous content (meaning this is a continuation),
     // then we assume it's actually complete to prevent infinite loops on empty continuation chunks.
     // However, if it's the *first* chunk and it's empty and incomplete, that's a problem to be handled by the action.
-    if ((!htmlChunkResult || htmlChunkResult.trim() === "") && !isActuallyComplete && input.previousContent) {
-        console.warn("AI returned empty chunk during continuation but indicated incompleteness. Forcing completion as a safeguard if previous content was substantial.");
-        isActuallyComplete = true;
+    // Also, if the model produces an empty chunk on the first attempt and says it's incomplete, it's likely a content filter / refusal.
+    if ((!htmlChunkResult || htmlChunkResult.trim() === "") && !isActuallyComplete) {
+        if (input.previousContent || input.attemptNumber === 1) { // If it's a continuation OR the very first attempt with no output
+             console.warn(`AI returned empty chunk (attempt ${input.attemptNumber}) but indicated incompleteness. Forcing completion as a safeguard.`);
+             isActuallyComplete = true; // Force complete to avoid loops or if initial generation fails completely
+        }
     }
+    
 
     // Defensive check: if LLM says it's complete, remove any lingering markers.
     // This regex ensures only a marker at the very end (and any trailing whitespace) is removed.
@@ -199,10 +216,6 @@ Image for your meticulous, life-defining, sub-atomic analysis (this is your ONLY
         htmlChunkResult = htmlChunkResult.replace(new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$', 'g'), "").trimEnd();
     }
 
-
     return { htmlChunk: htmlChunkResult, isComplete: isActuallyComplete };
   }
 );
-
-
-    
