@@ -56,24 +56,30 @@ export async function generateWebpageAction(photoDataUri: string, previousConten
         htmlChunk = htmlChunk.replace(new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$', 'g'), "").trimEnd();
     }
 
-
-    if ((!htmlChunk || htmlChunk.trim() === "") && !responseChunk.isComplete && !previousContent) {
+    // If it's the first attempt, and no HTML chunk was produced,
+    // construct an error message using the finish reason from the flow.
+    // This should cover cases where the flow itself indicates a failure (e.g. SAFETY, NO_CANDIDATES)
+    // by returning an empty chunk and a relevant finishReason.
+    if (attemptNumber === 1 && (!htmlChunk || htmlChunk.trim() === "")) {
       let specificError = "AI did not generate initial content.";
       if (responseChunk.finishReasonStr) {
-        specificError += ` (Reason: ${responseChunk.finishReasonStr}`;
+        specificError = `AI failed to generate initial content. Reason: ${responseChunk.finishReasonStr}`;
         if (responseChunk.finishMessageStr) {
-          specificError += ` - ${responseChunk.finishMessageStr}`;
+          specificError += `. Message: ${responseChunk.finishMessageStr}`;
+        } else {
+          specificError += ".";
         }
-        specificError += `).`;
       } else {
-        specificError += " No specific reason provided by AI service for empty initial content.";
+        // This case means the flow returned empty content without a clear finish reason,
+        // which could happen if the flow's internal logic has a path that doesn't set finishReason.
+        specificError += " No specific reason was provided by the AI service for the empty initial response.";
       }
-      specificError += " This might be due to image complexity, content restrictions, or a temporary issue. Please try a different image or try again later.";
+      specificError += " This could be due to image complexity, content restrictions, or a temporary issue. Please try a different image or simplify your request.";
       
       return { 
         error: specificError, 
         generatedCode: "", 
-        isComplete: true,
+        isComplete: true, // Mark as complete because initial generation failed
         finishReasonStr: responseChunk.finishReasonStr,
         finishMessageStr: responseChunk.finishMessageStr
       };
@@ -104,7 +110,6 @@ export async function generateWebpageAction(photoDataUri: string, previousConten
             details += ` Caused by: ${cause.message}.`;
         }
         
-        // Try to extract finishReason and finishMessage from cause, as Genkit might put it there
         if (cause.finishReason) {
             finishReasonStr = cause.finishReason.toString();
             details += ` Finish Reason (from cause): ${finishReasonStr}.`;
@@ -114,7 +119,6 @@ export async function generateWebpageAction(photoDataUri: string, previousConten
             details += ` Finish Message (from cause): ${finishMessageStr}.`;
         }
 
-        // Look for candidates in cause, common in Genkit error structures for model responses
         if (!finishReasonStr && cause.candidates && Array.isArray(cause.candidates) && cause.candidates.length > 0 && cause.candidates[0]) {
             const candidateError = cause.candidates[0];
             if (candidateError.finishReason) {
@@ -148,21 +152,20 @@ export async function generateWebpageAction(photoDataUri: string, previousConten
         errorMessage = "You've exceeded the current API usage limits or requests are too frequent. Please try again later or check your plan and billing details.";
     }
 
-    // Append any gathered details if the primary errorMessage is still generic or could use more info
-    if (details && !errorMessage.includes(details.substring(0,50))) { // Avoid appending if already included (approx)
+    if (details && !errorMessage.includes(details.substring(0,50))) { 
         errorMessage += ` Additional details: ${details}`;
     }
     
-    // Sanitize error message to prevent extremely long messages
     if (errorMessage.length > 1000) {
         errorMessage = errorMessage.substring(0, 1000) + "... (message truncated)";
     }
 
     return { 
         error: errorMessage, 
-        isComplete: true, // Critical error, so generation is considered complete/failed
-        finishReasonStr: finishReasonStr, // Pass along if found
-        finishMessageStr: finishMessageStr // Pass along if found
+        isComplete: true, 
+        finishReasonStr: finishReasonStr, 
+        finishMessageStr: finishMessageStr 
     };
   }
 }
+
