@@ -40,24 +40,23 @@ export async function generateWebpageFromImage(input: GenerateWebpageInput): Pro
 
 const marker = "<!-- MORE_CONTENT_TO_FOLLOW -->";
 
-// Drastically Simplified System Instructions - Kept here for reference but NOT USED in ai.definePrompt for this test
-const systemInstructions_DISABLED_FOR_TEST = `
+// Simplified System Instructions
+const systemInstructions = `
 You are an expert AI web developer. Your task is to convert the provided image into a single, complete HTML document with embedded CSS.
 
-**MANDATORY DIRECTIVES:**
-1.  **Output Format:** Your entire response **MUST** be a single string containing a COMPLETE HTML document: \`<html><head><style>ALL CSS HERE</style></head><body>HTML CONTENT HERE</body></html>\`. **DO NOT WRAP THE HTML CODE IN MARKDOWN BACKTICKS OR ANY OTHER FORMATTING.**
-2.  **CSS Styling:** ALL CSS styles **MUST** be embedded DIRECTLY within the HTML using \`<style>\` tags in the \`<head>\`. You MAY link to public CDN web fonts (e.g., Google Fonts).
-3.  **Visual Replication & Reconstruction:** Strive for accurate visual replication. All non-textual visual elements (icons, logos, embedded photographs in the design, patterns) **MUST be RECONSTRUCTED using ONLY HTML and CSS, or INLINE SVG within the HTML.**
-4.  **ABSOLUTE PROHIBITION:** DO NOT use \`<img>\` tags to embed rasterized versions of UI elements from the original image. DO NOT embed the source image data (\`photoDataUri\`) in CSS \`url()\` or anywhere in the output HTML/CSS. The source image is for your visual reference ONLY.
-5.  **Static Output:** The generated webpage should be static. Avoid JavaScript.
-6.  **Continuation Marker:** If the full HTML/CSS is too extensive, end your response *EXACTLY* with the marker: \`${marker}\`. Do not include this marker if the content completes the webpage.
+MANDATORY DIRECTIVES:
+1.  Output Format: Respond with a COMPLETE HTML document: <html><head><style>CSS HERE</style></head><body>HTML HERE</body></html>. DO NOT USE MARKDOWN.
+2.  CSS Styling: Embed ALL CSS in <style> tags in <head>. Public CDN fonts are allowed.
+3.  Visual Replication: Reconstruct all non-textual visual elements (icons, logos, patterns) using ONLY HTML/CSS or INLINE SVG.
+4.  ABSOLUTE PROHIBITION: DO NOT use <img> tags for UI elements from the source image. DO NOT embed the source image data URI.
+5.  Static Output: Avoid JavaScript.
+6.  Continuation Marker: If the HTML is too long, end your response EXACTLY with: ${marker}. Do not include it if the content is complete.
 `;
-
 
 const generateWebpagePrompt = ai.definePrompt(
   {
-    name: 'generateWebpageWithoutSystemInstructionsTest', // Renamed for clarity of test
-    // system: systemInstructions, // Temporarily REMOVED for testing
+    name: 'generateWebpageSystemInstructionTest', // Reverted name for clarity
+    system: systemInstructions, // Using simplified system instructions
     inputSchema: GenerateWebpageInputSchema,
     model: 'googleai/gemini-1.5-flash-latest',
     config: {
@@ -74,18 +73,8 @@ const generateWebpagePrompt = ai.definePrompt(
   async (input: GenerateWebpageInput): Promise<Part[]> => {
     const promptSegments: Part[] = [];
 
-    // Basic instructions directly in the prompt
-    const initialPromptText = `You are an expert AI web developer. Your task is to convert the provided image into a single, complete HTML document with embedded CSS.
-**Output Format:** Your entire response MUST be a single string containing a COMPLETE HTML document: \`<html><head><style>ALL CSS HERE</style></head><body>HTML CONTENT HERE</body></html>\`. DO NOT WRAP THE HTML CODE IN MARKDOWN.
-**CSS Styling:** ALL CSS styles MUST be embedded DIRECTLY within the HTML using \`<style>\` tags in the \`<head>\`. You MAY link to public CDN web fonts.
-**Visual Replication & Reconstruction:** Strive for accurate visual replication. All non-textual visual elements (icons, logos, patterns) MUST be RECONSTRUCTED using ONLY HTML and CSS, or INLINE SVG.
-**ABSOLUTE PROHIBITION:** DO NOT use \`<img>\` tags for UI elements from the source image. DO NOT embed the source image data URI in the output.
-**Static Output:** Avoid JavaScript.
-**Continuation Marker:** If the full HTML/CSS is too long, end *EXACTLY* with: ${marker}.
-`;
-
     if (input.previousContent && input.attemptNumber && input.attemptNumber > 1) {
-      promptSegments.push({text: `${initialPromptText}\n\nCONTINUATION (Attempt ${input.attemptNumber}):
+      promptSegments.push({text: `CONTINUATION (Attempt ${input.attemptNumber}):
 The previously generated content, WHICH YOU MUST NOT REPEAT, is:
 \`\`\`html
 ${input.previousContent}
@@ -97,13 +86,13 @@ DO NOT repeat any part of the \`previousContent\`.
 Your response should ONLY be the NEW code that follows the \`previousContent\`.
 If you are generating the final part, ensure the HTML document is properly closed.
 If more content is needed, end your response with the marker: ${marker}
-Adhere to ALL PREVIOUSLY STATED MANDATORY DIRECTIVES.
+Adhere to ALL PREVIOUSLY STATED MANDATORY DIRECTIVES (from system instructions).
 Output ONLY the NEW HTML code. Do NOT use markdown code blocks.`});
     } else {
-      promptSegments.push({text: `${initialPromptText}\n\nINITIAL GENERATION (Attempt 1):
+      promptSegments.push({text: `INITIAL GENERATION (Attempt 1):
 Image for your analysis (this is your ONLY visual guide for REPLICATION):`});
       promptSegments.push({media: {url: input.photoDataUri}});
-      promptSegments.push({text: `Apply your knowledge and ALL THE PREVIOUSLY STATED MANDATORY DIRECTIVES to transform the above image into a pixel-perfect HTML and CSS webpage.
+      promptSegments.push({text: `Apply your knowledge and ALL THE MANDATORY DIRECTIVES (from system instructions) to transform the above image into a pixel-perfect HTML and CSS webpage.
 Output ONLY the HTML code. Do NOT use markdown code blocks.
 Strictly follow all directives.`});
     }
@@ -238,6 +227,3 @@ const generateWebpageFlow = ai.defineFlow(
     };
   }
 );
-
-
-    
