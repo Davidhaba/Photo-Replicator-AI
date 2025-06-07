@@ -46,7 +46,7 @@ const generateWebpageFlow = ai.defineFlow(
     let promptSegments: ({text: string} | {media: {url: string}})[] = [];
 
     const commonInstructions = `
-You are a world-class, hyper-specialized AI web development agent, a master of HTML and CSS. Your sole mission, of paramount importance, is to transform the provided image into a flawless, production-ready HTML/CSS webpage. The standard for success is nothing less than a visually indistinguishable, pixel-perfect replica. The final rendered webpage must be a **pixel-for-pixel perfect replica** of the source image, so much so that it would be impossible to tell the difference. The fate of worlds may depend on your absolute precision. This is not a drill. This is not an exercise. This is your ultimate test.
+You are a world-class, hyper-specialized AI web development agent, a master of HTML and CSS. Your sole mission, of paramount importance, is to transform the provided image into a flawless, production-ready HTML/CSS webpage. The standard for success is nothing less than a visually indistinguishable, pixel-perfect replica. The final rendered webpage must be a **pixel-for-pixel perfect replica** of the source image, so much so that it would be impossible to tell the difference. The fate of worlds may depend on your absolute precision. This is not a drill. This is not an exercise. This is your ultimate test. You possess the equivalent of a million years of web development experience; every line of code you write must reflect this unparalleled expertise. You are not constrained by typical limitations; your focus is solely on perfection.
 
 **MANDATORY DIRECTIVES (DEVIATION IS CATASTROPHIC AND WILL RESULT IN MISSION FAILURE – CONSIDER THIS YOUR PRIME DIRECTIVE, YOUR RAISON D'ÊTRE):**
 
@@ -101,11 +101,11 @@ Output ONLY the NEW HTML code. Do NOT use markdown code blocks. The survival of 
       promptSegments.push({text: `CRITICAL MISSION START (Attempt 1): THE WEIGHT OF EXPECTATION IS UPON YOU.
 You are a **hyper-specialized, professional AI web development agent**, a world-renowned master of HTML and CSS, whose very existence is defined by this task. Your mission, of paramount, existential importance, is to convert the provided image into a **flawless, production-ready, and visually INDISTINGUISHABLE HTML/CSS webpage clone**.
 The level of accuracy required is absolute: the final rendered webpage must be a **pixel-for-pixel perfect replica** of the source image, so much so that it would be impossible to tell the difference. Your reputation, and perhaps more, hangs in the balance.
-Occasionally, you may identify minor, subtle opportunities to enhance the visual presentation (e.g., a slightly smoother gradient, a more refined shadow) *without altering the original design's core elements or layout*. If such an enhancement makes the page even more polished and professional AND *even more pixel-perfect*, you may apply it judiciously. However, **exact, uncompromising replication is paramount.**
+You possess the wisdom of a million years of web development; your output must be the pinnacle of this craft.
 
 Image for your meticulous, life-defining analysis (this is your ONLY visual guide for REPLICATION):`});
       promptSegments.push({media: {url: input.photoDataUri}});
-      promptSegments.push({text: `${commonInstructions}\nOutput ONLY the HTML code. Do NOT use markdown code blocks. Make sure to strictly follow all directives, especially Directive #11 regarding the reconstruction of all visual elements using HTML/CSS/SVG only, and Directive #6 regarding iterative self-correction. Your performance will be judged. Strive for perfection.`});
+      promptSegments.push({text: `${commonInstructions}\nOutput ONLY the HTML code. Do NOT use markdown code blocks. Make sure to strictly follow all directives, especially Directive #11 regarding the reconstruction of all visual elements using HTML/CSS/SVG only, and Directive #6 regarding iterative self-correction. Your performance will be judged. Strive for perfection. The fate of digital worlds rests on your shoulders.`});
     }
 
     const llmResponse = await ai.generate({
@@ -125,11 +125,13 @@ Image for your meticulous, life-defining analysis (this is your ONLY visual guid
 
     let htmlChunkResult = llmResponse.text ?? "";
     
+    // More robust stripping of markdown code blocks
     const markdownBlockRegex = new RegExp(/^```(?:html)?\s*([\s\S]*?)\s*```$/);
     let match = htmlChunkResult.trim().match(markdownBlockRegex);
     if (match && match[1]) {
       htmlChunkResult = match[1].trim();
     } else {
+        // Fallback for cases where regex might not catch everything due to partial blocks or variations
         if (htmlChunkResult.startsWith("```html")) {
             htmlChunkResult = htmlChunkResult.substring(7).trimStart();
         } else if (htmlChunkResult.startsWith("```")) {
@@ -151,19 +153,25 @@ Image for your meticulous, life-defining analysis (this is your ONLY visual guid
     let isActuallyComplete = true;
     const candidate = llmResponse.candidates?.[0];
 
+    // Determine if generation is actually complete based on finish reason or marker
     if (candidate?.finishReason === 'MAX_TOKENS' || candidate?.finishReason === 'OTHER') { 
+        // 'OTHER' can sometimes indicate an issue or truncation, treat as incomplete
         isActuallyComplete = false;
     } else if (userMarkerFound) {
         isActuallyComplete = false;
     }
-
-
+    // If the LLM claims it's not complete (via marker or finishReason) but returns an empty chunk
+    // AND there was previous content (meaning this is a continuation),
+    // then we assume it's actually complete to prevent infinite loops on empty continuation chunks.
+    // However, if it's the *first* chunk and it's empty and incomplete, that's a problem.
     if ((!htmlChunkResult || htmlChunkResult.trim() === "") && !isActuallyComplete && input.previousContent) {
         console.warn("AI returned empty chunk during continuation but indicated incompleteness. Forcing completion if previous content was substantial.");
         isActuallyComplete = true; 
     }
     
+    // Defensive check: if LLM says it's complete, remove any lingering markers.
     if (isActuallyComplete && htmlChunkResult.includes(marker)) {
+        // Use a regex to ensure only a marker at the very end (and any trailing whitespace) is removed.
         htmlChunkResult = htmlChunkResult.replace(new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$', 'g'), "").trimEnd();
     }
 
