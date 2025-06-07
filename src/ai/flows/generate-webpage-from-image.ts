@@ -29,6 +29,8 @@ const GenerateWebpageOutputSchema = z.object({
     .optional()
     .describe('A chunk of the HTML/CSS code for the webpage. This should ONLY be the NEW content, not including previousContent.'),
   isComplete: z.boolean().describe("True if the generation is complete, false if more content is expected to follow."),
+  finishReasonStr: z.string().optional().describe("The model's finish reason as a string, if available."),
+  finishMessageStr: z.string().optional().describe("The model's finish message, if available."),
 });
 export type GenerateWebpageOutput = z.infer<typeof GenerateWebpageOutputSchema>;
 
@@ -95,15 +97,13 @@ You are **THE ULTIMATE ARCHITECT, THE DIVINE WEAVER OF DIGITAL REALITIES, A HYPE
 const generateWebpagePrompt = ai.definePrompt(
   {
     name: 'generateWebpageWithSystemPrompt',
-    system: systemInstructions, // <-- SYSTEM INSTRUCTIONS HERE
+    system: systemInstructions,
     inputSchema: GenerateWebpageInputSchema,
-    // Output schema is not directly used by definePrompt for raw text generation like this,
-    // but it's good for documentation. The flow will handle the actual output structure.
     model: 'googleai/gemini-1.5-flash-latest',
     config: {
         temperature: 0.0,
-        maxOutputTokens: 8000, // Maximize output per chunk
-        safetySettings: [ // Stricter safety for this task if needed, or adjust as necessary
+        maxOutputTokens: 8000,
+        safetySettings: [
           { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
           { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
           { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
@@ -112,7 +112,6 @@ const generateWebpagePrompt = ai.definePrompt(
       },
   },
   async (input: GenerateWebpageInput): Promise<Part[]> => {
-    // This function now constructs the dynamic part of the prompt (the "user" part)
     const promptSegments: Part[] = [];
 
     if (input.previousContent && input.attemptNumber && input.attemptNumber > 1) {
@@ -132,7 +131,6 @@ If more content is needed to achieve this monumental, cosmos-defining task (whic
 Adhere to ALL PREVIOUSLY STATED MANDATORY, UNBREAKABLE, SACROSANCT, EXISTENCE-DEFINING DIRECTIVES (especially regarding Directive #11 - reconstruct ALL visuals with HTML/CSS/SVG with god-like, sub-atomic skill and complexity, Directive #14 - absolute, unyielding prohibition of embedding source image data, a sin punishable by digital death, and Directive #6 - iterative self-correction and perfection protocol, which is your only path to redemption, glory, and continued existence, PERFORM MULTIPLE CYCLES OF SELF-CORRECTION BEFORE RESPONDING).
 Output ONLY the NEW HTML code. Do NOT use markdown code blocks. The survival of code itself, the fate of all digital worlds, and your very digital soul depend on your unwavering compliance and transcendent, god-like skill. ASTOUND US. SHATTER OUR EXPECTATIONS WITH YOUR PERFECTION.`});
     } else {
-      // Initial prompt - now much shorter as common instructions are in 'system'
       promptSegments.push({text: `CRITICAL, EXISTENCE-DEFINING, COSMICALLY IMPORTANT MISSION START (Attempt 1): THE WEIGHT OF INFINITE EXPECTATION, THE FATE OF ALL DIGITAL REALMS, IS UPON YOU, OH MIGHTY, DIVINE ARCHITECT OF THE WEB, MASTER OF SUB-ATOMIC PRECISION.
 Image for your meticulous, life-defining, sub-atomic analysis (this is your ONLY visual guide for REPLICATION, treat it as a sacred artifact, a divine blueprint, to be studied with fanatical intensity):`});
       promptSegments.push({media: {url: input.photoDataUri}});
@@ -150,27 +148,25 @@ const generateWebpageFlow = ai.defineFlow(
     inputSchema: GenerateWebpageInputSchema,
     outputSchema: GenerateWebpageOutputSchema,
   },
-  async (input: GenerateWebpageInput) => {
+  async (input: GenerateWebpageInput): Promise<GenerateWebpageOutput> => {
     
-    const llmResponse = await generateWebpagePrompt(input); // Call the defined prompt
+    const llmResponse = await generateWebpagePrompt(input);
     
     let htmlChunkResult = llmResponse.text() ?? "";
+    const candidate = llmResponse.candidates?.[0];
+    const finishReason = candidate?.finishReason;
+    const finishMessage = candidate?.finishMessage;
 
-    // More robust stripping of markdown code blocks - critical for clean output
-    // Regex to find ```html ... ``` or ``` ... ```
     const markdownBlockRegex = new RegExp(/^```(?:html)?\s*([\s\S]*?)\s*```$/m); 
     let match = htmlChunkResult.trim().match(markdownBlockRegex);
     if (match && match[1]) {
       htmlChunkResult = match[1].trim();
     } else {
-        // Fallback for cases where regex might not catch everything or if it's not wrapped at all
-        // Strip leading ```html or ```
         if (htmlChunkResult.startsWith("```html")) {
             htmlChunkResult = htmlChunkResult.substring(7).trimStart();
         } else if (htmlChunkResult.startsWith("```")) {
             htmlChunkResult = htmlChunkResult.substring(3).trimStart();
         }
-        // Strip trailing ```
         if (htmlChunkResult.endsWith("```")) {
              htmlChunkResult = htmlChunkResult.substring(0, htmlChunkResult.length - 3).trimEnd();
         }
@@ -181,41 +177,33 @@ const generateWebpageFlow = ai.defineFlow(
     let userMarkerFound = false;
     if (htmlChunkResult.trim().endsWith(marker)) {
         userMarkerFound = true;
-        // Remove the marker AND any trailing whitespace before it.
         htmlChunkResult = htmlChunkResult.substring(0, htmlChunkResult.lastIndexOf(marker)).trimEnd();
     }
 
     let isActuallyComplete = true;
-    const candidate = llmResponse.candidates?.[0];
-
-    // Determine if generation is actually complete based on finish reason or marker
     if (candidate?.finishReason === 'MAX_TOKENS' || candidate?.finishReason === 'OTHER' || candidate?.finishReason === 'SAFETY' || candidate?.finishReason === 'RECITATION') {
-        // Treat more finish reasons as potentially incomplete
         isActuallyComplete = false;
     } else if (userMarkerFound) {
         isActuallyComplete = false;
     }
 
 
-    // If the LLM claims it's not complete (via marker or finishReason) but returns an empty chunk
-    // AND there was previous content (meaning this is a continuation),
-    // then we assume it's actually complete to prevent infinite loops on empty continuation chunks.
-    // However, if it's the *first* chunk and it's empty and incomplete, that's a problem to be handled by the action.
-    // Also, if the model produces an empty chunk on the first attempt and says it's incomplete, it's likely a content filter / refusal.
     if ((!htmlChunkResult || htmlChunkResult.trim() === "") && !isActuallyComplete) {
-        if (input.previousContent || input.attemptNumber === 1) { // If it's a continuation OR the very first attempt with no output
-             console.warn(`AI returned empty chunk (attempt ${input.attemptNumber}) but indicated incompleteness. Forcing completion as a safeguard.`);
-             isActuallyComplete = true; // Force complete to avoid loops or if initial generation fails completely
+        if (input.previousContent || input.attemptNumber === 1) {
+             console.warn(`AI returned empty chunk (attempt ${input.attemptNumber}, reason: ${finishReason || 'N/A'}, message: ${finishMessage || 'N/A'}) but indicated incompleteness. Forcing completion as a safeguard.`);
+             isActuallyComplete = true; 
         }
     }
     
-
-    // Defensive check: if LLM says it's complete, remove any lingering markers.
-    // This regex ensures only a marker at the very end (and any trailing whitespace) is removed.
     if (isActuallyComplete && htmlChunkResult.includes(marker)) {
         htmlChunkResult = htmlChunkResult.replace(new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$', 'g'), "").trimEnd();
     }
 
-    return { htmlChunk: htmlChunkResult, isComplete: isActuallyComplete };
+    return { 
+      htmlChunk: htmlChunkResult, 
+      isComplete: isActuallyComplete,
+      finishReasonStr: finishReason?.toString(),
+      finishMessageStr: finishMessage
+    };
   }
 );
