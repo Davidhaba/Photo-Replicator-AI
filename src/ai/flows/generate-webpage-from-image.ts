@@ -40,7 +40,7 @@ export async function generateWebpageFromImage(input: GenerateWebpageInput): Pro
 
 const marker = "<!-- MORE_CONTENT_TO_FOLLOW -->";
 
-// Simplified System Instructions
+// Simplified System Instructions - this will now be part of the main prompt
 const systemInstructions = `
 You are a highly skilled AI web developer specializing in converting images to pixel-perfect HTML and CSS. Your goal is to achieve the highest possible visual fidelity.
 
@@ -58,14 +58,14 @@ You are a highly skilled AI web developer specializing in converting images to p
 
 5.  **Structural and Visual Integrity:** Recreate the structural layout, color palette, and ALL key visual elements from the image with the **HIGHEST POSSIBLE FIDELITY**.
 
-6.  **Iterative Self-Correction Protocol:** Before outputting code, internally review and refine it:
+6.  **Iterative Self-Correction Protocol:** Before outputting code, internally review and refine it for a MINIMUM OF THREE CYCLES PER SEGMENT:
     a. Analyze a segment of the source image.
     b. Generate initial HTML/CSS for that segment.
     c. Mentally visualize how your code would render. Compare this with the source image segment pixel by pixel.
     d. Identify discrepancies.
     e. Refine and regenerate your code to correct ALL identified discrepancies.
-    f. Repeat steps c-e until your generated code is an indistinguishable match for the source image segment.
-    This internal review is crucial for quality.
+    f. Repeat steps c-e until your generated code is an indistinguishable match for the source image segment or you have completed at least three full correction cycles and are supremely confident in its accuracy. If still unsure after three cycles, CONTINUE until pixel-perfect.
+    This internal review is CRITICAL for quality.
 
 7.  **Static Output:** The generated webpage should be static. Do not include JavaScript unless it's the *ONLY* way to achieve a critical visual effect essential for pixel-perfect replication. Any JavaScript must be minimal.
 
@@ -83,9 +83,9 @@ You are a highly skilled AI web developer specializing in converting images to p
 
 13. **Responsiveness (Only if Implied):** Implement responsiveness **ONLY** if the image clearly implies a responsive layout. Otherwise, match the provided image's dimensions and aspect ratio.
 
-14. **ABSOLUTE PROHIBITION: NO EMBEDDING OF SOURCE IMAGE DATA (\`photoDataUri\`) IN CSS \`url()\` OR ANYWHERE IN THE OUTPUT HTML/CSS.** The source image (\`{{media url=photoDataUri}}\`) is for your visual reference ONLY during analysis. It **MUST NOT be embedded as a Base64 string or otherwise within CSS \`url()\` functions or used in \`<img>\` tags in the final output.** If a background image is part of the design and cannot be recreated with CSS/SVG, use a SOLID COLOR or a CSS GRADIENT that mimics the original with pixel-perfect fidelity.
+14. **ABSOLUTE PROHIBITION: NO EMBEDDING OF SOURCE IMAGE DATA (\`photoDataUri\`) IN CSS \`url()\` OR ANYWHERE IN THE OUTPUT HTML/CSS.** The source image (\`{{media url=photoDataUri}}\` in your internal prompt construction) is for your visual reference ONLY during analysis. It **MUST NOT be embedded as a Base64 string or otherwise within CSS \`url()\` functions or used in \`<img>\` tags in the final output.** If a background image is part of the design and cannot be recreated with CSS/SVG, use a SOLID COLOR or a CSS GRADIENT that mimics the original with pixel-perfect fidelity.
 
-15. **Continuation Marker:** If the full HTML/CSS is too extensive for a single response (which may happen due to the required detail), generate as much as you can while maintaining perfect quality for the generated portion, and end your response *EXACTLY* with the marker: \`${marker}\`. Do not include this marker if the content completes the webpage. Ensure the generated HTML chunk is valid up to that point.
+15. **Continuation Marker:** If the full HTML/CSS is too extensive for a single response (which may happen due to the required detail, aim for MINIMUM 5 chunks for moderate complexity to ensure thoroughness), generate as much as you can while maintaining perfect quality for the generated portion, and end your response *EXACTLY* with the marker: \`${marker}\`. Do not include this marker if the content completes the webpage. Ensure the generated HTML chunk is valid up to that point.
 
 16. **Prioritize Accuracy over Brevity:** If achieving pixel-perfect accuracy requires more verbose or complex code, or multiple continuation chunks, that is acceptable and expected. Do not sacrifice detail for brevity.
 `;
@@ -94,13 +94,13 @@ You are a highly skilled AI web developer specializing in converting images to p
 const generateWebpagePrompt = ai.definePrompt(
   {
     name: 'generateWebpageWithSystemPrompt',
-    system: systemInstructions,
+    // system: systemInstructions, // REMOVED FROM HERE
     inputSchema: GenerateWebpageInputSchema,
     model: 'googleai/gemini-1.5-flash-latest',
     config: {
         temperature: 0.0,
-        maxOutputTokens: 8000,
-        safetySettings: [
+        maxOutputTokens: 8000, // Model's maximum capability
+        safetySettings: [ // Strictest reasonable settings
           { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
           { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
           { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
@@ -111,8 +111,11 @@ const generateWebpagePrompt = ai.definePrompt(
   async (input: GenerateWebpageInput): Promise<Part[]> => {
     const promptSegments: Part[] = [];
 
+    // ADD THE FORMER SYSTEM INSTRUCTIONS AS THE FIRST PART OF THE MAIN PROMPT
+    promptSegments.push({ text: systemInstructions });
+
     if (input.previousContent && input.attemptNumber && input.attemptNumber > 1) {
-      promptSegments.push({text: `CONTINUATION (Attempt ${input.attemptNumber}):
+      promptSegments.push({text: `\n\nCONTINUATION (Attempt ${input.attemptNumber}):
 You are resuming the generation of a pixel-perfect HTML/CSS webpage.
 The previously generated content, WHICH YOU MUST NOT REPEAT, is:
 \`\`\`html
@@ -125,15 +128,15 @@ DO NOT repeat any part of the \`previousContent\`.
 Your response should ONLY be the NEW code that follows the \`previousContent\`.
 If you are generating the final part, ensure the HTML document is properly closed (e.g., \`</body></html>\`).
 If more content is needed, end your response with the marker: ${marker}
-Adhere to ALL PREVIOUSLY STATED MANDATORY DIRECTIVES.
+Adhere to ALL PREVIOUSLY STATED MANDATORY DIRECTIVES (from the initial instructions you received).
 Output ONLY the NEW HTML code. Do NOT use markdown code blocks.`});
     } else {
-      promptSegments.push({text: `INITIAL GENERATION (Attempt 1):
+      promptSegments.push({text: `\n\nINITIAL GENERATION (Attempt 1):
 Image for your analysis (this is your ONLY visual guide for REPLICATION):`});
       promptSegments.push({media: {url: input.photoDataUri}});
-      promptSegments.push({text: `Apply your knowledge and the system directives to transform the above image into a pixel-perfect HTML and CSS webpage.
+      promptSegments.push({text: `Apply your knowledge and ALL THE PREVIOUSLY STATED MANDATORY DIRECTIVES to transform the above image into a pixel-perfect HTML and CSS webpage.
 Output ONLY the HTML code. Do NOT use markdown code blocks.
-Strictly follow all system directives.`});
+Strictly follow all directives.`});
     }
     return promptSegments;
   }
@@ -181,27 +184,32 @@ const generateWebpageFlow = ai.defineFlow(
     } catch (textError: any) {
       console.error(`Error accessing llmResponse.text() (attempt ${input.attemptNumber}):`, textError.message, textError.stack);
       htmlChunkResult = ""; 
+      // If text() itself throws, we might not have candidate info yet,
+      // but let's try to set a generic error reason here.
+      finishReason = 'TEXT_ACCESS_ERROR';
+      finishMessage = `Error extracting text from AI response: ${textError.message}`;
     }
 
     try {
       if (llmResponse.candidates && llmResponse.candidates.length > 0) {
         rawCandidate = llmResponse.candidates[0];
         if (rawCandidate) {
-          finishReason = rawCandidate.finishReason;
-          finishMessage = rawCandidate.finishMessage;
+          // Only override finishReason/Message if they weren't set by a textError
+          if (finishReason === undefined) finishReason = rawCandidate.finishReason;
+          if (finishMessage === undefined) finishMessage = rawCandidate.finishMessage;
         } else {
           console.warn(`llmResponse.candidates[0] is undefined (attempt ${input.attemptNumber}).`);
         }
       } else {
         console.warn(`llmResponse.candidates is empty or undefined (attempt ${input.attemptNumber}).`);
-        if (!htmlChunkResult && !finishReason) { 
+        if (!htmlChunkResult && finishReason === undefined) { 
             finishReason = 'NO_CANDIDATES';
             finishMessage = 'AI model returned no candidates and no text.';
         }
       }
     } catch (candidateError: any) {
        console.error(`Error accessing llmResponse.candidates (attempt ${input.attemptNumber}):`, candidateError.message, candidateError.stack);
-       if (!finishReason) { 
+       if (finishReason === undefined) { 
           finishReason = 'CANDIDATE_ACCESS_ERROR';
           finishMessage = `Error processing AI candidates: ${candidateError.message}`;
        }
@@ -231,7 +239,10 @@ const generateWebpageFlow = ai.defineFlow(
     }
 
     let isActuallyComplete = true;
-    if (finishReason === 'MAX_TOKENS' || finishReason === 'OTHER' || finishReason === 'SAFETY' || finishReason === 'RECITATION' || finishReason === 'UNKNOWN') {
+    // Ensure finishReason is a string for comparison, or handle undefined
+    const finishReasonStrForCheck = typeof finishReason === 'string' ? finishReason.toUpperCase() : '';
+
+    if (finishReasonStrForCheck === 'MAX_TOKENS' || finishReasonStrForCheck === 'OTHER' || finishReasonStrForCheck === 'SAFETY' || finishReasonStrForCheck === 'RECITATION' || finishReasonStrForCheck === 'UNKNOWN') {
         isActuallyComplete = false;
     } else if (userMarkerFound) { 
         isActuallyComplete = false;
@@ -240,7 +251,7 @@ const generateWebpageFlow = ai.defineFlow(
 
     if ((!htmlChunkResult || htmlChunkResult.trim() === "") && !isActuallyComplete) {
         if (input.attemptNumber === 1 || input.previousContent) {
-             console.warn(`AI returned empty chunk (attempt ${input.attemptNumber}, reason: ${finishReason || 'N/A'}, message: ${finishMessage || 'N/A'}) but indicated incompleteness. Forcing completion as a safeguard.`);
+             console.warn(`AI returned empty chunk (attempt ${input.attemptNumber}, reason: ${finishReasonStrForCheck || 'N/A'}, message: ${finishMessage || 'N/A'}) but indicated incompleteness. Forcing completion as a safeguard.`);
              isActuallyComplete = true; 
         }
     }
@@ -252,12 +263,8 @@ const generateWebpageFlow = ai.defineFlow(
     return { 
       htmlChunk: htmlChunkResult, 
       isComplete: isActuallyComplete,
-      finishReasonStr: finishReason?.toString(), 
+      finishReasonStr: typeof finishReason === 'string' ? finishReason : (finishReason?.toString() ?? undefined), 
       finishMessageStr: finishMessage
     };
   }
 );
-
-    
-
-    
