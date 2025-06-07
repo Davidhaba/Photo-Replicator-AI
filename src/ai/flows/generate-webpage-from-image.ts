@@ -95,7 +95,7 @@ DO NOT repeat any part of the \`previousContent\`.
 Your response should ONLY be the NEW code that follows the \`previousContent\`.
 If you are generating the final part of the webpage, ensure the HTML document is properly closed (e.g., </body></html>).
 If more content is needed, end your response with the marker: ${marker}
-Adhere to ALL PREVIOUSLY STATED MANDATORY DIRECTIVES (especially regarding Directive #11 - reconstruct ALL visuals with HTML/CSS/SVG).
+Adhere to ALL PREVIOUSLY STATED MANDATORY DIRECTIVES (especially regarding Directive #11 - reconstruct ALL visuals with HTML/CSS/SVG, and Directive #6 - iterative self-correction).
 Output ONLY the NEW HTML code. Do NOT use markdown code blocks.`});
     } else {
       promptSegments.push({text: `CRITICAL MISSION START (Attempt 1):
@@ -105,16 +105,16 @@ Occasionally, you may identify minor, subtle opportunities to enhance the visual
 
 Image for your meticulous analysis (this is your ONLY visual guide for REPLICATION):`});
       promptSegments.push({media: {url: input.photoDataUri}});
-      promptSegments.push({text: `${commonInstructions}\nOutput ONLY the HTML code. Do NOT use markdown code blocks. Make sure to strictly follow all directives, especially Directive #11 regarding the reconstruction of all visual elements using HTML/CSS/SVG only.`});
+      promptSegments.push({text: `${commonInstructions}\nOutput ONLY the HTML code. Do NOT use markdown code blocks. Make sure to strictly follow all directives, especially Directive #11 regarding the reconstruction of all visual elements using HTML/CSS/SVG only, and Directive #6 regarding iterative self-correction.`});
     }
 
     const llmResponse = await ai.generate({
       prompt: promptSegments,
-      model: 'googleai/gemini-1.5-flash-latest',
+      model: 'googleai/gemini-1.5-flash-latest', // Using a capable model
       config: {
-        temperature: 0.0, 
-        maxOutputTokens: 8000, 
-        safetySettings: [
+        temperature: 0.0, // For deterministic, precise output
+        maxOutputTokens: 8000, // Allow for larger chunks
+        safetySettings: [ // Adjusted safety settings
           { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
           { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
           { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
@@ -125,7 +125,7 @@ Image for your meticulous analysis (this is your ONLY visual guide for REPLICATI
 
     let htmlChunkResult = llmResponse.text ?? "";
     
-    // More robust stripping of markdown code blocks and surrounding whitespace
+    // More robust stripping of markdown code blocks
     const markdownBlockRegex = new RegExp(/^```(?:html)?\s*([\s\S]*?)\s*```$/);
     let match = htmlChunkResult.trim().match(markdownBlockRegex);
     if (match && match[1]) {
@@ -166,7 +166,7 @@ Image for your meticulous analysis (this is your ONLY visual guide for REPLICATI
         // If it's a continuation and we get no new code but it's not marked complete,
         // it might be an LLM error or it genuinely thinks it's done but didn't remove the marker.
         // Assume it's complete to avoid infinite loops unless previous content was also minimal.
-        console.warn("AI returned empty chunk during continuation but indicated incompleteness. Forcing completion if previous content was substantial, otherwise retrying once more could be an option.");
+        console.warn("AI returned empty chunk during continuation but indicated incompleteness. Forcing completion if previous content was substantial.");
         isActuallyComplete = true; 
     }
     
